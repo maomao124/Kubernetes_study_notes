@@ -1051,3 +1051,275 @@ eyJhbGciOiJSUzI1NiIsImtpZCI6IkpYc3BrVTJtR2Q2VlVCd2FsMnlac0FFZ19XVWdqYUtBZU5WV296
 
 ### 第十二步：安装 Ingress
 
+```shell
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.0/deploy/static/provider/cloud/deploy.yaml
+```
+
+或
+
+```shell
+kubectl apply -f ingress-nginx-controller.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl apply -f ingress-nginx-controller.yaml
+namespace/ingress-nginx created
+serviceaccount/ingress-nginx created
+serviceaccount/ingress-nginx-admission created
+role.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx-admission created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+service/ingress-nginx-controller-admission created
+deployment.apps/ingress-nginx-controller created
+job.batch/ingress-nginx-admission-create created
+job.batch/ingress-nginx-admission-patch created
+ingressclass.networking.k8s.io/nginx created
+validatingwebhookconfiguration.admissionregistration.k8s.io/ingress-nginx-admission created
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop>
+```
+
+
+
+验证：
+
+```sh
+kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx
+NAMESPACE       NAME                                        READY   STATUS              RESTARTS   AGE
+ingress-nginx   ingress-nginx-admission-create-8b2gl        0/1     ImagePullBackOff    0          36s
+ingress-nginx   ingress-nginx-admission-patch-pb7b9         0/1     ErrImagePull        0          36s
+ingress-nginx   ingress-nginx-controller-5dcb895bcd-hh69q   0/1     ContainerCreating   0          36s
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop>
+```
+
+
+
+
+
+### 第十三步：测试示例应用
+
+部署测试应用：
+
+```sh
+kubectl create -f sample/apple.yaml
+kubectl create -f sample/banana.yaml
+kubectl create -f sample/ingress.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl create -f sample/apple.yaml
+pod/apple-app created
+service/apple-service created
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl create -f sample/banana.yaml
+pod/banana-app created
+service/banana-service created
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl create -f sample/ingress.yaml
+Error from server (InternalError): error when creating "sample/ingress.yaml": Internal error occurred: failed calling webhook "validate.nginx.ingress.kubernetes.io": failed to call webhook: Post "https://ingress-nginx-controller-admission.ingress-nginx.svc:443/networking/v1/ingresses?timeout=10s": dial tcp 10.99.181.133:443: connect: connection refused
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop>
+```
+
+失败1个
+
+
+
+测试示例应用：
+
+```sh
+curl -kL http://localhost/apple
+apple
+curl -kL http://localhost/banana
+banana
+```
+
+
+
+
+
+### 第十四步：删除示例应用
+
+```sh
+kubectl delete -f sample/apple.yaml
+kubectl delete -f sample/banana.yaml
+kubectl delete -f sample/ingress.yaml
+```
+
+
+
+
+
+### 第十五步：删除 Ingress
+
+```sh
+kubectl delete -f ingress-nginx-controller.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop> kubectl delete -f ingress-nginx-controller.yaml
+namespace "ingress-nginx" deleted
+serviceaccount "ingress-nginx" deleted
+serviceaccount "ingress-nginx-admission" deleted
+role.rbac.authorization.k8s.io "ingress-nginx" deleted
+role.rbac.authorization.k8s.io "ingress-nginx-admission" deleted
+clusterrole.rbac.authorization.k8s.io "ingress-nginx" deleted
+clusterrole.rbac.authorization.k8s.io "ingress-nginx-admission" deleted
+rolebinding.rbac.authorization.k8s.io "ingress-nginx" deleted
+rolebinding.rbac.authorization.k8s.io "ingress-nginx-admission" deleted
+clusterrolebinding.rbac.authorization.k8s.io "ingress-nginx" deleted
+clusterrolebinding.rbac.authorization.k8s.io "ingress-nginx-admission" deleted
+configmap "ingress-nginx-controller" deleted
+service "ingress-nginx-controller" deleted
+service "ingress-nginx-controller-admission" deleted
+deployment.apps "ingress-nginx-controller" deleted
+job.batch "ingress-nginx-admission-create" deleted
+job.batch "ingress-nginx-admission-patch" deleted
+ingressclass.networking.k8s.io "nginx" deleted
+validatingwebhookconfiguration.admissionregistration.k8s.io "ingress-nginx-admission" deleted
+PS C:\Users\mao\Desktop\k8s-for-docker-desktop>
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Linux安装
+
+一个master节点，两个node节点，一共需要3台服务器
+
+* master节点： k8s1
+* node节点： k8s2
+* node节点：k8s3
+
+
+
+### 第一步：检查操作系统的版本
+
+此方式下安装kubernetes集群要求Centos版本要在7.5或之上
+
+```sh
+cat /etc/redhat-release
+```
+
+
+
+```sh
+[root@5f4b2177517c /]# cat /etc/redhat-release
+CentOS Linux release 8.4.2105
+[root@5f4b2177517c /]#
+```
+
+
+
+
+
+### 第二步：时间同步
+
+启动chronyd服务：
+
+```sh
+systemctl start chronyd
+```
+
+
+
+设置chronyd服务开机自启：
+
+```sh
+systemctl enable chronyd
+```
+
+
+
+chronyd服务启动稍等几秒钟，就可以使用date命令验证时间了：
+
+```sh
+date
+```
+
+
+
+
+
+### 第三步：禁用iptables和firewalld服务
+
+kubernetes和docker在运行中会产生大量的iptables规则，为了不让系统规则跟它们混淆，直接关闭系统的规则
+
+
+
+关闭firewalld服务：
+
+```sh
+systemctl stop firewalld
+```
+
+```sh
+systemctl disable firewalld
+```
+
+
+
+关闭iptables服务：
+
+```sh
+systemctl stop iptables
+```
+
+```sh
+systemctl disable iptables
+```
+
+
+
+
+
+### 第四步：禁用selinux
+
+ selinux是linux系统下的一个安全服务，如果不关闭它，在安装集群中会产生各种各样的奇葩问题
+
+编辑 /etc/selinux/config 文件，修改SELINUX的值为disabled。注意修改完毕之后需要重启linux服务
+
+设置：
+
+SELINUX=disabled
+
+
+
+
+
+### 第五步：禁用swap分区
+
+swap分区指的是虚拟内存分区，它的作用是在物理内存使用完之后，将磁盘空间虚拟成内存来使用。启用swap设备会对系统的性能产生非常负面的影响，因此kubernetes要求每个节点都要禁用swap设备。但是如果因为某些原因确实不能关闭swap分区，就需要在集群安装过程中通过明确的参数进行配置说明
+
+
+
+编辑分区配置文件/etc/fstab，注释掉swap分区一行。注意修改完毕之后需要重启linux服务。
+
+
+
+
+
+### 第六步：修改linux的内核参数
+
