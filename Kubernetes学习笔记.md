@@ -1323,3 +1323,372 @@ swap分区指的是虚拟内存分区，它的作用是在物理内存使用完�
 
 ### 第六步：修改linux的内核参数
 
+修改linux的内核参数，添加网桥过滤和地址转发功能
+
+编辑/etc/sysctl.d/kubernetes.conf文件，添加如下配置：
+
+```
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+```
+
+
+
+重新加载配置：
+
+```sh
+sysctl -p
+```
+
+
+
+加载网桥过滤模块：
+
+```sh
+modprobe br_netfilter
+```
+
+
+
+查看网桥过滤模块是否加载成功：
+
+```sh
+lsmod | grep br_netfilter
+```
+
+
+
+
+
+### 第七步：配置ipvs功能
+
+在kubernetes中service有两种代理模型，一种是基于iptables的，一种是基于ipvs的
+
+ipvs的性能明显要高一些，但是如果要使用它，需要手动载入ipvs模块
+
+
+
+安装ipset和ipvsadm(centos)：
+
+```sh
+yum install ipset ipvsadmin -y
+```
+
+
+
+添加需要加载的模块写入脚本文件：
+
+```sh
+cat <<EOF >  /etc/sysconfig/modules/ipvs.modules
+#!/bin/bash
+modprobe -- ip_vs
+modprobe -- ip_vs_rr
+modprobe -- ip_vs_wrr
+modprobe -- ip_vs_sh
+modprobe -- nf_conntrack_ipv4
+EOF
+```
+
+
+
+为脚本文件添加执行权限：
+
+```sh
+chmod +x /etc/sysconfig/modules/ipvs.modules
+```
+
+
+
+执行脚本文件：
+
+```sh
+/bin/bash /etc/sysconfig/modules/ipvs.modules
+```
+
+
+
+查看对应的模块是否加载成功：
+
+```sh
+lsmod | grep -e ip_vs -e nf_conntrack_ipv4
+```
+
+
+
+
+
+### 第八步：重启服务器
+
+命令：
+
+```sh
+reboot
+```
+
+
+
+
+
+### 第九步：安装Docker
+
+切换镜像源：
+
+```sh
+wget https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -O /etc/yum.repos.d/docker-ce.repo
+```
+
+
+
+查看当前镜像源中支持的docker版本：
+
+```sh
+yum list docker-ce --showduplicates
+```
+
+
+
+```sh
+[root@5f4b2177517c /]# yum list docker-ce --showduplicates
+Failed to set locale, defaulting to C.UTF-8
+Docker CE Stable - x86_64                                                                                        55 kB/s |  49 kB     00:00
+Available Packages
+docker-ce.x86_64                                                3:19.03.13-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:19.03.14-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:19.03.15-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.0-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.1-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.2-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.3-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.4-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.5-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.6-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.7-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.8-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.9-3.el8                                                 docker-ce-stable
+docker-ce.x86_64                                                3:20.10.10-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.11-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.12-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.13-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.14-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.15-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.16-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.17-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.18-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.19-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.20-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.21-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.22-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.23-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:20.10.24-3.el8                                                docker-ce-stable
+docker-ce.x86_64                                                3:23.0.0-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.1-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.2-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.3-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.4-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.5-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:23.0.6-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.0-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.1-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.2-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.3-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.4-1.el8                                                  docker-ce-stable
+docker-ce.x86_64                                                3:24.0.5-1.el8                                                  docker-ce-stable
+[root@5f4b2177517c /]#
+```
+
+
+
+
+
+安装特定版本的docker-ce：
+
+```sh
+yum install --setopt=obsoletes=0 docker-ce-20.10.24-3.el8 -y
+```
+
+
+
+```sh
+[root@5f4b2177517c /]# yum install --setopt=obsoletes=0 docker-ce-20.10.24-3.el8 -y
+Failed to set locale, defaulting to C.UTF-8
+Last metadata expiration check: 0:01:44 ago on Tue Jul 25 02:37:00 2023.
+Dependencies resolved.
+================================================================================================================================================
+ Package                                 Architecture      Version                                            Repository                   Size
+================================================================================================================================================
+Installing:
+ docker-ce                               x86_64            3:20.10.24-3.el8                                   docker-ce-stable             21 M
+Upgrading:
+ iptables-libs                           x86_64            1.8.4-20.el8                                       baseos                      107 k
+ python3-rpm                             x86_64            4.14.3-19.el8                                      baseos                      154 k
+ rpm                                     x86_64            4.14.3-19.el8                                      baseos                      543 k
+ rpm-build-libs                          x86_64            4.14.3-19.el8                                      baseos                      156 k
+ rpm-libs                                x86_64            4.14.3-19.el8                                      baseos                      344 k
+Installing dependencies:
+ checkpolicy                             x86_64            2.9-1.el8                                          baseos                      348 k
+ container-selinux                       noarch            2:2.167.0-1.module_el8.5.0+911+f19012f9            appstream                    54 k
+ containerd.io                           x86_64            1.6.21-3.1.el8                                     docker-ce-stable             34 M
+ diffutils                               x86_64            3.6-6.el8                                          baseos                      358 k
+ docker-ce-cli                           x86_64            1:24.0.5-1.el8                                     docker-ce-stable            7.2 M
+ docker-ce-rootless-extras               x86_64            24.0.5-1.el8                                       docker-ce-stable            4.9 M
+ fuse-common                             x86_64            3.2.1-12.el8                                       baseos                       21 k
+ fuse-overlayfs                          x86_64            1.7.1-1.module_el8.5.0+890+6b136101                appstream                    73 k
+ fuse3                                   x86_64            3.2.1-12.el8                                       baseos                       50 k
+ fuse3-libs                              x86_64            3.2.1-12.el8                                       baseos                       94 k
+ iptables                                x86_64            1.8.4-20.el8                                       baseos                      585 k
+ libcgroup                               x86_64            0.41-19.el8                                        baseos                       70 k
+ libnetfilter_conntrack                  x86_64            1.0.6-5.el8                                        baseos                       65 k
+ libnfnetlink                            x86_64            1.0.1-13.el8                                       baseos                       33 k
+ libnftnl                                x86_64            1.1.5-4.el8                                        baseos                       83 k
+ libselinux-utils                        x86_64            2.9-5.el8                                          baseos                      243 k
+ libslirp                                x86_64            4.4.0-1.module_el8.5.0+890+6b136101                appstream                    70 k
+ policycoreutils                         x86_64            2.9-16.el8                                         baseos                      373 k
+ policycoreutils-python-utils            noarch            2.9-16.el8                                         baseos                      252 k
+ python3-audit                           x86_64            3.0-0.17.20191104git1c2f876.el8                    baseos                       86 k
+ python3-libselinux                      x86_64            2.9-5.el8                                          baseos                      283 k
+ python3-libsemanage                     x86_64            2.9-6.el8                                          baseos                      127 k
+ python3-policycoreutils                 noarch            2.9-16.el8                                         baseos                      2.2 M
+ python3-setools                         x86_64            4.3.0-2.el8                                        baseos                      626 k
+ rpm-plugin-selinux                      x86_64            4.14.3-19.el8                                      baseos                       77 k
+ selinux-policy                          noarch            3.14.3-80.el8_5.2                                  baseos                      636 k
+ selinux-policy-targeted                 noarch            3.14.3-80.el8_5.2                                  baseos                       15 M
+ slirp4netns                             x86_64            1.1.8-1.module_el8.5.0+890+6b136101                appstream                    51 k
+Installing weak dependencies:
+ docker-buildx-plugin                    x86_64            0.11.2-1.el8                                       docker-ce-stable             13 M
+ docker-compose-plugin                   x86_64            2.20.2-1.el8                                       docker-ce-stable             13 M
+Enabling module streams:
+ container-tools                                           rhel8
+
+Transaction Summary
+================================================================================================================================================
+```
+
+
+
+
+
+
+
+### 第十步：修改Docker配置
+
+ Docker在默认情况下使用的Cgroup Driver为cgroupfs，而kubernetes推荐使用systemd来代替cgroupfs
+
+添加一个配置文件：
+
+```sh
+mkdir /etc/docker
+```
+
+
+
+```sh
+ cat <<EOF >  /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "registry-mirrors": ["https://kn0t2bca.mirror.aliyuncs.com"]
+}
+EOF
+```
+
+
+
+```sh
+[root@5f4b2177517c /]# cat /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "registry-mirrors": ["https://kn0t2bca.mirror.aliyuncs.com"]
+}
+[root@5f4b2177517c /]#
+```
+
+
+
+
+
+### 第十一步：启动Docker
+
+```sh
+systemctl restart docker
+```
+
+```sh
+systemctl enable docker
+```
+
+或者：
+
+```sh
+service docker start
+```
+
+或者：
+
+```sh
+/etc/init.d/docker start
+```
+
+
+
+
+
+
+
+### 第十二步：安装kubernetes组件
+
+编辑/etc/yum.repos.d/kubernetes.repo，添加下面的配置：
+
+```sh
+[kubernetes]	
+name=Kubernetes
+baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+gpgkey=http://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg
+       http://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+```
+
+
+
+安装kubeadm、kubelet和kubectl：
+
+```sh
+yum install kubeadm -y
+```
+
+```sh
+yum install kubelet -y
+```
+
+```sh
+yum install kubectl -y
+```
+
+
+
+配置kubelet的cgroup：
+
+编辑/etc/sysconfig/kubelet，添加下面的配置
+
+```sh
+KUBELET_CGROUP_ARGS="--cgroup-driver=systemd"
+KUBE_PROXY_MODE="ipvs"
+```
+
+
+
+设置kubelet开机自启：
+
+```sh
+systemctl enable kubelet
+```
+
+
+
+
+
+### 第十三步：准备集群镜像
+
+
+
