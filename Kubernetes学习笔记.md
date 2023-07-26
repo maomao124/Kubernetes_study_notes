@@ -1690,5 +1690,152 @@ systemctl enable kubelet
 
 ### 第十三步：准备集群镜像
 
+```sh
+kubeadm config images list
 
+images=(
+    kube-apiserver:v1.17.4
+    kube-controller-manager:v1.17.4
+    kube-scheduler:v1.17.4
+    kube-proxy:v1.17.4
+    pause:3.1
+    etcd:3.4.3-0
+    coredns:1.6.5
+)
+
+for imageName in ${images[@]} ; do
+	docker pull registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName
+	docker tag registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName 		k8s.gcr.io/$imageName
+	docker rmi registry.cn-hangzhou.aliyuncs.com/google_containers/$imageName
+done
+```
+
+
+
+
+
+### 第十四步：集群初始化
+
+在`master`节点上执行
+
+创建集群：
+
+```sh
+kubeadm init \
+	--kubernetes-version=v1.17.4 \
+    --pod-network-cidr=10.244.0.0/16 \
+    --service-cidr=10.96.0.0/12 \
+    --apiserver-advertise-address=192.168.109.100
+```
+
+
+
+```sh
+mkdir -p $HOME/.kube
+```
+
+```sh
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+```
+
+```sh
+chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+
+
+在`node`节点上执行
+
+```sh
+kubeadm join 192.168.109.100:6443 \ 
+	--token 8507uc.o0knircuri8etnw2 \
+	--discovery-token-ca-cert-hash \
+	sha256:acc37967fb5b0acf39d7598f8a439cc7dc88f439a3f4d0c9cae88e7901b9d3f
+```
+
+
+
+查看状态：
+
+```sh
+kubectl get nodes
+```
+
+此时的集群状态为NotReady，这是因为还没有配置网络插件
+
+
+
+
+
+### 第十五步：安装网络插件
+
+kubernetes支持多种网络插件，比如flannel、calico、canal等等，本次选择flannel
+
+在`master`节点执行：
+
+```sh
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+
+
+
+修改文件中quay.io仓库为quay-mirror.qiniu.com
+
+
+
+使用配置文件启动fannel
+
+```sh
+kubectl apply -f kube-flannel.yml
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 资源管理
+
+## 概述
+
+在kubernetes中，所有的内容都抽象为资源，用户需要通过操作资源来管理kubernetes
+
+kubernetes的本质上就是一个集群系统，用户可以在集群中部署各种服务，所谓的部署服务，其实就是在kubernetes集群中运行一个个的容器，并将指定的程序跑在容器中
+
+kubernetes的最小管理单元是pod而不是容器，所以只能将容器放在`Pod`中，而kubernetes一般也不会直接管理Pod，而是通过Pod控制器来管理Pod的
+
+Pod可以提供服务之后，就要考虑如何访问Pod中服务，kubernetes提供了`Service`资源实现这个功能
+
+如果Pod中程序的数据需要持久化，kubernetes还提供了各种`存储`系统
+
+
+
+![image-20230725112152247](img/Kubernetes学习笔记/image-20230725112152247.png)
+
+
+
+
+
+
+
+## 资源管理方式
 
