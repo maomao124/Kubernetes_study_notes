@@ -1839,3 +1839,244 @@ Pod可以提供服务之后，就要考虑如何访问Pod中服务，kubernetes�
 
 ## 资源管理方式
 
+* 命令式对象管理：直接使用命令去操作kubernetes资源
+* 命令式对象配置：通过命令配置和配置文件去操作kubernetes资源
+* 声明式对象配置：通过apply命令和配置文件去操作kubernetes资源
+
+
+
+|      类型      | 操作对象 | 适用环境 |      优点      |               缺点               |
+| :------------: | :------: | :------: | :------------: | :------------------------------: |
+| 命令式对象管理 |   对象   |   测试   |      简单      | 只能操作活动对象，无法审计、跟踪 |
+| 命令式对象配置 |   文件   |   开发   | 可以审计、跟踪 |  项目大时，配置文件多，操作麻烦  |
+| 声明式对象配置 |   目录   |   开发   |  支持目录操作  |        意外情况下难以调试        |
+
+
+
+
+
+### 命令式对象管理
+
+示例命令：`kubectl run nginx-pod --image=nginx:1.17.1 --port=80`
+
+命令语法：`kubectl [command] [type] [name] [flags]`
+
+
+
+* **kubectl**：kubernetes集群的命令行工具，通过它能够对集群本身进行管理，并能够在集群上进行容器化应用的安装部署
+* **comand**：指定要对资源执行的操作，例如create、get、delete
+* **type**：指定资源类型，比如deployment、pod、service
+* **name**：指定资源的名称，名称大小写敏感
+* **flags**：指定额外的可选参数
+
+
+
+
+
+kubernetes中所有的内容都抽象为资源，可以通过下面的命令进行查看：
+
+```sh
+kubectl api-resources
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl api-resources
+NAME                              SHORTNAMES   APIVERSION                             NAMESPACED   KIND
+bindings                                       v1                                     true         Binding
+componentstatuses                 cs           v1                                     false        ComponentStatus
+configmaps                        cm           v1                                     true         ConfigMap
+endpoints                         ep           v1                                     true         Endpoints
+events                            ev           v1                                     true         Event
+limitranges                       limits       v1                                     true         LimitRange
+namespaces                        ns           v1                                     false        Namespace
+nodes                             no           v1                                     false        Node
+persistentvolumeclaims            pvc          v1                                     true         PersistentVolumeClaim
+persistentvolumes                 pv           v1                                     false        PersistentVolume
+pods                              po           v1                                     true         Pod
+podtemplates                                   v1                                     true         PodTemplate
+replicationcontrollers            rc           v1                                     true         ReplicationController
+resourcequotas                    quota        v1                                     true         ResourceQuota
+secrets                                        v1                                     true         Secret
+serviceaccounts                   sa           v1                                     true         ServiceAccount
+services                          svc          v1                                     true         Service
+mutatingwebhookconfigurations                  admissionregistration.k8s.io/v1        false        MutatingWebhookConfiguration
+validatingwebhookconfigurations                admissionregistration.k8s.io/v1        false        ValidatingWebhookConfiguration
+customresourcedefinitions         crd,crds     apiextensions.k8s.io/v1                false        CustomResourceDefinition
+apiservices                                    apiregistration.k8s.io/v1              false        APIService
+controllerrevisions                            apps/v1                                true         ControllerRevision
+daemonsets                        ds           apps/v1                                true         DaemonSet
+deployments                       deploy       apps/v1                                true         Deployment
+replicasets                       rs           apps/v1                                true         ReplicaSet
+statefulsets                      sts          apps/v1                                true         StatefulSet
+tokenreviews                                   authentication.k8s.io/v1               false        TokenReview
+localsubjectaccessreviews                      authorization.k8s.io/v1                true         LocalSubjectAccessReview
+selfsubjectaccessreviews                       authorization.k8s.io/v1                false        SelfSubjectAccessReview
+selfsubjectrulesreviews                        authorization.k8s.io/v1                false        SelfSubjectRulesReview
+subjectaccessreviews                           authorization.k8s.io/v1                false        SubjectAccessReview
+horizontalpodautoscalers          hpa          autoscaling/v2                         true         HorizontalPodAutoscaler
+cronjobs                          cj           batch/v1                               true         CronJob
+jobs                                           batch/v1                               true         Job
+certificatesigningrequests        csr          certificates.k8s.io/v1                 false        CertificateSigningRequest
+leases                                         coordination.k8s.io/v1                 true         Lease
+endpointslices                                 discovery.k8s.io/v1                    true         EndpointSlice
+events                            ev           events.k8s.io/v1                       true         Event
+flowschemas                                    flowcontrol.apiserver.k8s.io/v1beta2   false        FlowSchema
+prioritylevelconfigurations                    flowcontrol.apiserver.k8s.io/v1beta2   false        PriorityLevelConfiguration
+ingressclasses                                 networking.k8s.io/v1                   false        IngressClass
+ingresses                         ing          networking.k8s.io/v1                   true         Ingress
+networkpolicies                   netpol       networking.k8s.io/v1                   true         NetworkPolicy
+runtimeclasses                                 node.k8s.io/v1                         false        RuntimeClass
+poddisruptionbudgets              pdb          policy/v1                              true         PodDisruptionBudget
+clusterrolebindings                            rbac.authorization.k8s.io/v1           false        ClusterRoleBinding
+clusterroles                                   rbac.authorization.k8s.io/v1           false        ClusterRole
+rolebindings                                   rbac.authorization.k8s.io/v1           true         RoleBinding
+roles                                          rbac.authorization.k8s.io/v1           true         Role
+priorityclasses                   pc           scheduling.k8s.io/v1                   false        PriorityClass
+csidrivers                                     storage.k8s.io/v1                      false        CSIDriver
+csinodes                                       storage.k8s.io/v1                      false        CSINode
+csistoragecapacities                           storage.k8s.io/v1                      true         CSIStorageCapacity
+storageclasses                    sc           storage.k8s.io/v1                      false        StorageClass
+volumeattachments                              storage.k8s.io/v1                      false        VolumeAttachment
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+namespace / pod的创建和删除：
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create namespace dev
+namespace/dev created
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d
+dev                    Active   9s
+kube-node-lease        Active   4d
+kube-public            Active   4d
+kube-system            Active   4d
+kubernetes-dashboard   Active   4d
+PS C:\Users\mao\Desktop> kubectl run pod --image=nginx -n dev
+pod/pod created
+PS C:\Users\mao\Desktop> kubectl get pod -n dev
+NAME   READY   STATUS              RESTARTS   AGE
+pod    0/1     ContainerCreating   0          12s
+PS C:\Users\mao\Desktop> kubectl delete ns dev
+namespace "dev" deleted
+```
+
+
+
+
+
+
+
+### 命令式对象配置
+
+命令式对象配置就是使用命令配合配置文件一起来操作kubernetes资源
+
+创建一个nginxpod.yaml：
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginxpod
+  namespace: dev
+spec:
+  containers:
+  - name: nginx-containers
+    image: nginx
+```
+
+
+
+执行create命令：
+
+```sh
+kubectl create -f nginxpod.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f nginxpod.yaml
+namespace/dev created
+pod/nginxpod created
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d
+dev                    Active   10s
+kube-node-lease        Active   4d
+kube-public            Active   4d
+kube-system            Active   4d
+kubernetes-dashboard   Active   4d
+PS C:\Users\mao\Desktop> kubectl get pod -n dev
+NAME       READY   STATUS    RESTARTS   AGE
+nginxpod   1/1     Running   0          15s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+执行get命令：
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get -f nginxpod.yaml
+NAME            STATUS   AGE
+namespace/dev   Active   78s
+
+NAME           READY   STATUS    RESTARTS   AGE
+pod/nginxpod   1/1     Running   0          78s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+执行delete命令：
+
+```sh
+kubectl delete -f nginxpod.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete -f nginxpod.yaml
+namespace "dev" deleted
+pod "nginxpod" deleted
+PS C:\Users\mao\Desktop>
+```
+
+```,sh
+PS C:\Users\mao\Desktop> kubectl get -f nginxpod.yaml
+Error from server (NotFound): namespaces "dev" not found
+Error from server (NotFound): namespaces "dev" not found
+PS C:\Users\mao\Desktop> kubectl get pod -n dev
+No resources found in dev namespace.
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d
+kube-node-lease        Active   4d
+kube-public            Active   4d
+kube-system            Active   4d
+kubernetes-dashboard   Active   4d
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 声明式对象配置
+
