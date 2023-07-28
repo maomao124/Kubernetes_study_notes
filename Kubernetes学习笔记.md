@@ -2080,3 +2080,323 @@ PS C:\Users\mao\Desktop>
 
 ### 声明式对象配置
 
+声明式对象配置跟命令式对象配置很相似，但是它只有一个命令apply
+
+声明式对象配置就是使用apply描述一个资源最终的状态（在yaml中定义状态）
+
+使用apply操作资源，如果资源不存在，就创建，相当于 kubectl create，如果资源已存在，就更新，相当于 kubectl patch
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl apply -f nginxpod.yaml
+namespace/dev created
+pod/nginxpod created
+PS C:\Users\mao\Desktop> kubectl apply -f nginxpod.yaml
+namespace/dev unchanged
+pod/nginxpod unchanged
+PS C:\Users\mao\Desktop>
+```
+
+
+
+kubectl的运行是需要进行配置的，它的配置文件是\$HOME/.kube，如果想要在node节点运行此命令，需要将master上的.kube文件复制到node节点上，即在master节点上执行下面操作：
+
+```sh
+scp  -r  HOME/.kube   node1: HOME/
+```
+
+
+
+
+
+
+
+# 命令
+
+## Namespace
+
+Namespace是kubernetes系统中的一种非常重要资源，它的主要作用是用来实现**多套环境的资源隔离**或者**多租户的资源隔离**
+
+默认情况下，kubernetes集群中的所有的Pod都是可以相互访问的。但是在实际中，可能不想让两个Pod之间进行互相的访问，那此时就可以将两个Pod划分到不同的namespace下。kubernetes通过将集群内部的资源分配到不同的Namespace中，可以形成逻辑上的"组"，以方便不同的组的资源进行隔离使用和管理
+
+可以通过kubernetes的授权机制，将不同的namespace交给不同租户进行管理，这样就实现了多租户的资源隔离。此时还能结合kubernetes的资源配额机制，限定不同租户能占用的资源，例如CPU使用量、内存使用量等等，来实现租户可用资源的管理
+
+
+
+kubernetes在集群启动之后，会默认创建几个namespace：
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d1h
+kube-node-lease        Active   4d1h
+kube-public            Active   4d1h
+kube-system            Active   4d1h
+kubernetes-dashboard   Active   4d
+PS C:\Users\mao\Desktop>
+```
+
+
+
+* default：所有未指定Namespace的对象都会被分配在default命名空间
+* kube-node-lease：集群节点之间的心跳维护
+* kube-public：此命名空间下的资源可以被所有人访问
+* kube-system：所有由Kubernetes系统创建的资源都处于这个命名空间
+
+
+
+
+
+### 查看所有ns
+
+命令：
+
+```sh
+kubectl get ns
+```
+
+
+
+### 查看指定的ns
+
+命令：
+
+```sh
+kubectl get ns ns名称
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns dev
+Error from server (NotFound): namespaces "dev" not found
+PS C:\Users\mao\Desktop> kubectl get ns default
+NAME      STATUS   AGE
+default   Active   4d1h
+PS C:\Users\mao\Desktop> kubectl get ns kubernetes-dashboard
+NAME                   STATUS   AGE
+kubernetes-dashboard   Active   4d1h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查看并指定输出格式
+
+命令：
+
+```sh
+kubectl get ns ns名称  -o 格式参数
+```
+
+kubernetes支持的格式有很多，比较常见的是wide、json、yaml
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns kubernetes-dashboard -o json
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "annotations": {
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"annotations\":{},\"name\":\"kubernetes-dashboard\"}}\n"
+        },
+        "creationTimestamp": "2023-07-23T05:18:38Z",
+        "labels": {
+            "kubernetes.io/metadata.name": "kubernetes-dashboard"
+        },
+        "name": "kubernetes-dashboard",
+        "resourceVersion": "1053",
+        "uid": "873140b1-9c0e-4a8b-8f80-d77ed463cde9"
+    },
+    "spec": {
+        "finalizers": [
+            "kubernetes"
+        ]
+    },
+    "status": {
+        "phase": "Active"
+    }
+}
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns kubernetes-dashboard -o yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{},"name":"kubernetes-dashboard"}}
+  creationTimestamp: "2023-07-23T05:18:38Z"
+  labels:
+    kubernetes.io/metadata.name: kubernetes-dashboard
+  name: kubernetes-dashboard
+  resourceVersion: "1053"
+  uid: 873140b1-9c0e-4a8b-8f80-d77ed463cde9
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查看ns详情
+
+命令：
+
+```sh
+kubectl describe ns ns名称
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl describe ns kubernetes-dashboard
+Name:         kubernetes-dashboard
+Labels:       kubernetes.io/metadata.name=kubernetes-dashboard
+Annotations:  <none>
+Status:       Active
+
+No resource quota.
+
+No LimitRange resource.
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+### 创建ns
+
+命令：
+
+```sh
+kubectl create ns ns名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create ns test
+namespace/test created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 删除ns
+
+命令：
+
+```sh
+kubectl delete ns ns名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d1h
+kube-node-lease        Active   4d1h
+kube-public            Active   4d1h
+kube-system            Active   4d1h
+kubernetes-dashboard   Active   4d1h
+test                   Active   64s
+PS C:\Users\mao\Desktop> kubectl delete ns test
+namespace "test" deleted
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d1h
+kube-node-lease        Active   4d1h
+kube-public            Active   4d1h
+kube-system            Active   4d1h
+kubernetes-dashboard   Active   4d1h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式创建ns
+
+创建一个配置文件test.yaml：
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test
+```
+
+
+
+创建命令：
+
+```sh
+kubectl create -f test.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl  create  -f test.yaml
+namespace/test created
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d1h
+kube-node-lease        Active   4d1h
+kube-public            Active   4d1h
+kube-system            Active   4d1h
+kubernetes-dashboard   Active   4d1h
+test                   Active   7s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式删除ns
+
+创建命令：
+
+```sh
+kubectl delete -f test.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete -f test.yaml
+namespace "test" deleted
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d1h
+kube-node-lease        Active   4d1h
+kube-public            Active   4d1h
+kube-system            Active   4d1h
+kubernetes-dashboard   Active   4d1h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+## Pod
