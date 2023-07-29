@@ -2400,3 +2400,343 @@ PS C:\Users\mao\Desktop>
 
 
 ## Pod
+
+Pod是kubernetes集群进行管理的最小单元，程序要运行必须部署在容器中，而容器必须存在于Pod中
+
+Pod可以认为是容器的封装，一个Pod中可以存在一个或者多个容器
+
+kubernetes在集群启动之后，集群中的各个组件也都是以Pod方式运行的
+
+
+
+
+
+### 创建并运行Pod
+
+kubernetes没有提供单独运行Pod的命令，都是通过Pod控制器来实现的
+
+格式：`kubectl run pod控制器名称 [参数]`
+
+
+
+参数：
+
+* --image：指定Pod的镜像
+* --port   指定端口
+* --namespace  指定namespace
+
+
+
+示例：
+
+```sh
+kubectl run nginx --image=nginx --port=8083 --namespace test
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   6d
+kube-node-lease        Active   6d
+kube-public            Active   6d
+kube-system            Active   6d
+kubernetes-dashboard   Active   6d
+PS C:\Users\mao\Desktop> kubectl create ns test
+namespace/test created
+PS C:\Users\mao\Desktop> kubectl run nginx --image=nginx --port=8083 --namespace test
+pod/nginx created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查看pod信息
+
+查看Pod基本信息：
+
+```sh
+kubectl get pods -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          3m21s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+查看Pod的详细信息：
+
+```sh
+kubectl describe pod pod名称 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl describe pod nginx -n test
+Name:             nginx
+Namespace:        test
+Priority:         0
+Service Account:  default
+Node:             docker-desktop/192.168.65.4
+Start Time:       Sat, 29 Jul 2023 14:10:19 +0800
+Labels:           run=nginx
+Annotations:      <none>
+Status:           Running
+IP:               10.1.0.44
+IPs:
+  IP:  10.1.0.44
+Containers:
+  nginx:
+    Container ID:   docker://c2295d7b9f06b4319e9c60f7193936229e2b5b060f39d152f86042d84d7a9e7a
+    Image:          nginx
+    Image ID:       docker-pullable://nginx@sha256:0d17b565c37bcbd895e9d92315a05c1c3c9a29f762b011a10c54a66cd53c9b31
+    Port:           8083/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Sat, 29 Jul 2023 14:10:38 +0800
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-zgxkf (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  kube-api-access-zgxkf:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  4m47s  default-scheduler  Successfully assigned test/nginx to docker-desktop
+  Normal  Pulling    4m47s  kubelet            Pulling image "nginx"
+  Normal  Pulled     4m29s  kubelet            Successfully pulled image "nginx" in 17.924834217s
+  Normal  Created    4m29s  kubelet            Created container nginx
+  Normal  Started    4m29s  kubelet            Started container nginx
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 访问Pod
+
+获取podIP：
+
+```sh
+kubectl get pods -n 命名空间名称 -o 输出格式
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test -o wide
+NAME    READY   STATUS    RESTARTS   AGE     IP          NODE             NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          7m46s   10.1.0.44   docker-desktop   <none>           <none>
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test -o yaml
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    creationTimestamp: "2023-07-29T06:10:19Z"
+    labels:
+      run: nginx
+    name: nginx
+    namespace: test
+    resourceVersion: "16078"
+    uid: 67daabc2-59a4-485c-9640-df009cfb4775
+  spec:
+    containers:
+    - image: nginx
+      imagePullPolicy: Always
+      name: nginx
+      ports:
+      - containerPort: 8083
+        protocol: TCP
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-zgxkf
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    nodeName: docker-desktop
+    preemptionPolicy: PreemptLowerPriority
+    priority: 0
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: default
+    serviceAccountName: default
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - name: kube-api-access-zgxkf
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2023-07-29T06:10:19Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2023-07-29T06:10:39Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2023-07-29T06:10:39Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2023-07-29T06:10:19Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: docker://c2295d7b9f06b4319e9c60f7193936229e2b5b060f39d152f86042d84d7a9e7a
+      image: nginx:latest
+      imageID: docker-pullable://nginx@sha256:0d17b565c37bcbd895e9d92315a05c1c3c9a29f762b011a10c54a66cd53c9b31
+      lastState: {}
+      name: nginx
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2023-07-29T06:10:38Z"
+    hostIP: 192.168.65.4
+    phase: Running
+    podIP: 10.1.0.44
+    podIPs:
+    - ip: 10.1.0.44
+    qosClass: BestEffort
+    startTime: "2023-07-29T06:10:19Z"
+kind: List
+metadata:
+  resourceVersion: ""
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 删除指定Pod
+
+删除指定Pod：
+
+```sh
+kubectl delete pod pod名称 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete pod nginx -n test
+pod "nginx" deleted
+PS C:\Users\mao\Desktop>
+```
+
+
+
+再次查询：
+
+```sh
+kubectl get pods -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+No resources found in test namespace.
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查询Pod控制器
+
+命令：
+
+```sh
+kubectl get deploy -n 命名空间名称
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+No resources found in test namespace.
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   6d1h
+kube-node-lease        Active   6d1h
+kube-public            Active   6d1h
+kube-system            Active   6d1h
+kubernetes-dashboard   Active   6d1h
+test                   Active   23m
+PS C:\Users\mao\Desktop> kubectl get deploy -n kube-system
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+coredns   2/2     2            2           6d1h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+### 删除Pod控制器
+
