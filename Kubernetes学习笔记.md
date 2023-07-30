@@ -2740,3 +2740,132 @@ PS C:\Users\mao\Desktop>
 
 ### 删除Pod控制器
 
+命令：
+
+```sh
+kubectl delete deploy 名称 -n 命名空间名称
+```
+
+
+
+
+
+### 配置文件方式创建Pod
+
+创建一个pod-nginx.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
+
+
+
+创建命令：
+
+```sh
+kubectl create -f pod-nginx.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> cat .\pod-nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+PS C:\Users\mao\Desktop> kubectl create -f pod-nginx.yaml
+pod/nginx created
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          33s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式删除Pod
+
+命令：
+
+```sh
+kubectl delete -f pod-nginx.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete -f pod-nginx.yaml
+pod "nginx" deleted
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+No resources found in test namespace.
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+
+
+## Label
+
+Label的作用就是在资源上添加标识，用来对它们进行区分和选择
+
+特点：
+
+- 一个Label会以key/value键值对的形式附加到各种对象上，如Node、Pod、Service等等
+- 一个资源对象可以定义任意数量的Label ，同一个Label也可以被添加到任意数量的资源对象上去
+- Label通常在资源对象定义时确定，当然也可以在对象创建后动态添加或者删除
+
+
+
+可以通过Label实现资源的多维度分组，以便灵活、方便地进行资源分配、调度、配置、部署等管理工作
+
+示例：
+
+* 版本标签："version":"release"
+* 环境标签："environment":"dev"
+
+
+
+标签定义完毕之后，还要考虑到标签的选择，这就要使用到Label Selector，Label Selector用于查询和筛选拥有某些标签的资源对象
+
+当前有两种Label Selector：
+
+* 基于等式的Label Selector
+* 基于集合的Label Selector
+
+
+
+标签的选择条件可以使用多个，此时将多个Label Selector进行组合，使用逗号","进行分隔即可
+
+
+
+
+
+### 添加Label
+
