@@ -2867,5 +2867,137 @@ Label的作用就是在资源上添加标识，用来对它们进行区分和选
 
 
 
-### 添加Label
+### 添加Pod的Label
+
+命令：
+
+```sh
+kubectl label pod Pod名称 key=value -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f .\pod-nginx.yaml
+pod/nginx created
+PS C:\Users\mao\Desktop> kubectl get -f .\pod-nginx.yaml
+NAME    READY   STATUS              RESTARTS   AGE
+nginx   0/1     ContainerCreating   0          11s
+PS C:\Users\mao\Desktop> kubectl label pod nginx version=3.3.3 -n test
+pod/nginx labeled
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 更新Pod的Label
+
+命令：
+
+```sh
+kubectl label pod Pod名称 key=value -n 命名空间名称 --overwrite
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl label pod nginx version=4.3.3 -n test --overwrite
+pod/nginx labeled
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查看标签
+
+命令：
+
+```sh
+kubectl get pod Pod名称 -n 命名空间名称 --show-labels
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          4m17s   version=4.3.3
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl label pod nginx time=2023-06-01 -n test
+pod/nginx labeled
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          5m33s   time=2023-06-01,version=4.3.3
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 筛选标签
+
+命令：
+
+```sh
+kubectl get pod -n 命名空间名称 -l key=value  --show-labels
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod -n test -l version=4.3.3 --show-labels
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          7m41s   time=2023-06-01,version=4.3.3
+PS C:\Users\mao\Desktop> kubectl get pod -n test -l version=4.3.4 --show-labels
+No resources found in test namespace.
+PS C:\Users\mao\Desktop> kubectl get pod -n test -l version!=4.3.4 --show-labels
+NAME    READY   STATUS    RESTARTS   AGE    LABELS
+nginx   1/1     Running   0          8m3s   time=2023-06-01,version=4.3.3
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 删除标签
+
+命令：
+
+```sh
+kubectl label pod Pod名称 key- -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          9m41s   time=2023-06-01,version=4.3.3
+PS C:\Users\mao\Desktop> kubectl label pod nginx time- -n test
+pod/nginx unlabeled
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE   LABELS
+nginx   1/1     Running   0          10m   version=4.3.3
+PS C:\Users\mao\Desktop> kubectl label pod nginx version- -n test
+pod/nginx unlabeled
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE   LABELS
+nginx   1/1     Running   0          10m   <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式添加Label
 
