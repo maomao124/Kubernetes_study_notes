@@ -3001,3 +3001,253 @@ PS C:\Users\mao\Desktop>
 
 ### 配置文件方式添加Label
 
+修改之前的文件pod-nginx.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.9.9" 
+    time: "2023"
+    id: "100000001"
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
+
+
+
+创建命令：
+
+```sh
+kubectl create -f pod-nginx.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get -f pod-nginx.yaml
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          19m
+PS C:\Users\mao\Desktop> kubectl delete pod nginx -n test
+pod "nginx" deleted
+PS C:\Users\mao\Desktop> cat .\pod-nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.9.9"
+    time: "2023"
+    id: "100000001"
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+PS C:\Users\mao\Desktop> kubectl create -f pod-nginx.yaml
+pod/nginx created
+PS C:\Users\mao\Desktop> kubectl get -f pod-nginx.yaml
+NAME    READY   STATUS              RESTARTS   AGE
+nginx   0/1     ContainerCreating   0          8s
+PS C:\Users\mao\Desktop> kubectl get -f pod-nginx.yaml
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          66s
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          3m10s   id=100000001,time=2023,version=9.9.9
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+### 配置文件方式更新Label
+
+修改之前的文件pod-nginx.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.8.9" 
+    time: "2024"
+    id: "100000002"
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
+
+
+
+更新命令：
+
+```sh
+kubectl apply -f pod-nginx.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> cat .\pod-nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.8.9"
+    time: "2024"
+    id: "100000002"
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+PS C:\Users\mao\Desktop> kubectl apply -f .\pod-nginx.yaml
+Warning: resource pods/nginx is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.
+pod/nginx configured
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE    LABELS
+nginx   1/1     Running   0          6m5s   id=100000002,time=2024,version=9.8.9
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式删除Label
+
+修改之前的文件pod-nginx.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.8.9" 
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
+
+
+
+删除命令：
+
+```sh
+kubectl apply -f pod-nginx.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> cat .\pod-nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    version: "9.8.9"
+spec:
+  containers:
+  - image: nginx
+    name: pod
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+PS C:\Users\mao\Desktop> kubectl apply -f .\pod-nginx.yaml
+pod/nginx configured
+PS C:\Users\mao\Desktop> kubectl get pod nginx -n test --show-labels
+NAME    READY   STATUS    RESTARTS   AGE    LABELS
+nginx   1/1     Running   0          8m7s   version=9.8.9
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+
+
+
+
+## Deployment
+
+在kubernetes中，Pod是最小的控制单元，但是kubernetes很少直接控制Pod，一般都是通过Pod控制器来完成的。Pod控制器用于pod的管理，确保pod资源符合预期的状态，当pod的资源出现故障时，会尝试进行重启或重建pod
+
+![image-20230731133911235](img/Kubernetes学习笔记/image-20230731133911235.png)
+
+
+
+
+
+
+
+### 创建
+
+命令：
+
+```sh
+kubectl run deployment名称 [参数]
+```
+
+
+
+参数：
+
+* --image：指定pod的镜像
+* --port：指定端口
+* --replicas：指定创建pod数量
+* --namespace ：指定namespace
+
+
+
+示例：
+
+```sh
+kubectl run nginx2 --image=nginx --port=8080 --replicas=5 -n test
+```
+
+
+
