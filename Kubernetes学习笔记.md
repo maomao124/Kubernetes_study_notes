@@ -3229,7 +3229,7 @@ PS C:\Users\mao\Desktop>
 命令：
 
 ```sh
-kubectl run deployment名称 [参数]
+kubectl create deployment deployment名称 [参数]
 ```
 
 
@@ -3246,8 +3246,245 @@ kubectl run deployment名称 [参数]
 示例：
 
 ```sh
-kubectl run nginx2 --image=nginx --port=8080 --replicas=5 -n test
+kubectl create deployment nginx2 --image=nginx --port=8080 --replicas=5 -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create deployment nginx2 --image=nginx --port=8080 --replicas=5 -n test
+deployment.apps/nginx2 created
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                      READY   STATUS              RESTARTS        AGE
+nginx                     1/1     Running             1 (9m45s ago)   2d9h
+nginx2-868f5b5bbb-h2tmh   0/1     ContainerCreating   0               38s
+nginx2-868f5b5bbb-hvzzd   0/1     ContainerCreating   0               38s
+nginx2-868f5b5bbb-qv8l4   1/1     Running             0               38s
+nginx2-868f5b5bbb-r2zh6   1/1     Running             0               38s
+nginx2-868f5b5bbb-zp2fb   0/1     ContainerCreating   0               38s
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                      READY   STATUS              RESTARTS      AGE
+nginx                     1/1     Running             1 (10m ago)   2d9h
+nginx2-868f5b5bbb-h2tmh   0/1     ContainerCreating   0             55s
+nginx2-868f5b5bbb-hvzzd   0/1     ContainerCreating   0             55s
+nginx2-868f5b5bbb-qv8l4   1/1     Running             0             55s
+nginx2-868f5b5bbb-r2zh6   1/1     Running             0             55s
+nginx2-868f5b5bbb-zp2fb   1/1     Running             0             55s
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                      READY   STATUS              RESTARTS      AGE
+nginx                     1/1     Running             1 (10m ago)   2d9h
+nginx2-868f5b5bbb-h2tmh   0/1     ContainerCreating   0             66s
+nginx2-868f5b5bbb-hvzzd   0/1     ContainerCreating   0             66s
+nginx2-868f5b5bbb-qv8l4   1/1     Running             0             66s
+nginx2-868f5b5bbb-r2zh6   1/1     Running             0             66s
+nginx2-868f5b5bbb-zp2fb   1/1     Running             0             66s
+PS C:\Users\mao\Desktop>
 ```
 
 
+
+
+
+### 查看deployment
+
+命令：
+
+```sh
+kubectl get deploy -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+NAME     READY   UP-TO-DATE   AVAILABLE   AGE
+nginx2   5/5     5            5           3m4s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+* UP-TO-DATE：成功升级的副本数量
+* AVAILABLE：可用副本的数量
+
+
+
+
+
+### 查看deployment的详细信息
+
+命令：
+
+```sh
+kubectl describe deploy 名称 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl describe deploy nginx2 -n test
+Name:                   nginx2
+Namespace:              test
+CreationTimestamp:      Tue, 01 Aug 2023 20:33:06 +0800
+Labels:                 app=nginx2
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               app=nginx2
+Replicas:               5 desired | 5 updated | 5 total | 5 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx2
+  Containers:
+   nginx:
+    Image:        nginx
+    Port:         8080/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   nginx2-868f5b5bbb (5/5 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  5m3s  deployment-controller  Scaled up replica set nginx2-868f5b5bbb to 5
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 删除deployment
+
+命令：
+
+```sh
+kubectl delete deploy 名称 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete deploy nginx2 -n test
+deployment.apps "nginx2" deleted
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+No resources found in test namespace.
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME    READY   STATUS    RESTARTS      AGE
+nginx   1/1     Running   1 (16m ago)   2d9h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+### 配置文件方式创建deployment
+
+创建配置文件deploy-nginx.yaml：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: test
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+```
+
+
+
+创建命令：
+
+```sh
+kubectl create -f deploy-nginx.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f deploy-nginx.yaml
+deployment.apps/nginx created
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                     READY   STATUS              RESTARTS      AGE
+nginx                    1/1     Running             1 (21m ago)   2d9h
+nginx-55f7b5b4f4-9kpmc   1/1     Running             0             13s
+nginx-55f7b5b4f4-b65ws   1/1     Running             0             13s
+nginx-55f7b5b4f4-fmwrj   0/1     ContainerCreating   0             13s
+nginx-55f7b5b4f4-q8cff   0/1     ContainerCreating   0             13s
+nginx-55f7b5b4f4-s2k87   0/1     ContainerCreating   0             13s
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   2/5     5            2           23s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+### 配置文件方式删除deployment
+
+配置文件方式删除deployment命令：
+
+```sh
+kubectl delete -f deploy-nginx.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                     READY   STATUS              RESTARTS      AGE
+nginx                    1/1     Running             1 (21m ago)   2d9h
+nginx-55f7b5b4f4-9kpmc   1/1     Running             0             13s
+nginx-55f7b5b4f4-b65ws   1/1     Running             0             13s
+nginx-55f7b5b4f4-fmwrj   0/1     ContainerCreating   0             13s
+nginx-55f7b5b4f4-q8cff   0/1     ContainerCreating   0             13s
+nginx-55f7b5b4f4-s2k87   0/1     ContainerCreating   0             13s
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   2/5     5            2           23s
+PS C:\Users\mao\Desktop>
+PS C:\Users\mao\Desktop>
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   5/5     5            5           3m24s
+PS C:\Users\mao\Desktop> kubectl delete -f deploy-nginx.yaml
+deployment.apps "nginx" deleted
+PS C:\Users\mao\Desktop> kubectl get deploy -n test
+No resources found in test namespace.
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME    READY   STATUS    RESTARTS      AGE
+nginx   1/1     Running   1 (24m ago)   2d9h
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+## Service
 
