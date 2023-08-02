@@ -3488,3 +3488,126 @@ PS C:\Users\mao\Desktop>
 
 ## Service
 
+虽然每个Pod都会分配一个单独的Pod IP，然而却存在如下两问题：
+
+* Pod IP 会随着Pod的重建产生变化
+* Pod IP 仅仅是集群内可见的虚拟IP，外部无法访问
+
+这样对于访问这个服务带来了难度。因此，kubernetes设计了Service来解决这个问题
+
+
+
+Service可以看作是一组同类Pod**对外的访问接口**。借助Service，应用可以方便地实现服务发现和负载均衡
+
+
+
+
+
+### 暴露Service
+
+集群内部可访问
+
+命令：
+
+```sh
+kubectl expose deploy deploy名称 --name=Service名称 --type=ClusterIP --port=80 --target-port=80 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create deployment nginx --image=nginx --port=8080 --replicas=5 -n test
+deployment.apps/nginx created
+PS C:\Users\mao\Desktop> kubectl expose deploy nginx --name=svc-nginx --type=ClusterIP --port=80 --target-port=80 -n test
+service/svc-nginx exposed
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 查看service
+
+命令：
+
+```sh
+kubectl get svc service名称 -n 命名空间名称 -o wide
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get svc svc-nginx -n test
+NAME        TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+svc-nginx   ClusterIP   10.111.164.207   <none>        80/TCP    83s
+PS C:\Users\mao\Desktop> kubectl get svc svc-nginx -n test -o wide
+NAME        TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE   SELECTOR
+svc-nginx   ClusterIP   10.111.164.207   <none>        80/TCP    92s   app=nginx
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 暴露Service
+
+集群外部可访问
+
+如果需要创建外部也可以访问的Service，需要修改type为NodePort
+
+```sh
+kubectl expose deploy deploy名称 --name=Service名称 --type=NodePort --port=80 --target-port=80 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create deployment nginx3 --image=nginx --port=8080 --replicas=3 -n test
+deployment.apps/nginx3 created
+PS C:\Users\mao\Desktop> kubectl expose deploy nginx3 --name=svc-nginx3 --type=NodePort --port=80 --target-port=80 -n test
+service/svc-nginx3 exposed
+PS C:\Users\mao\Desktop> kubectl get svc svc-nginx3 -n test -o wide
+NAME         TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+svc-nginx3   NodePort   10.101.177.85   <none>        80:30477/TCP   26s   app=nginx3
+PS C:\Users\mao\Desktop>
+```
+
+
+
+此时查看，会发现出现了NodePort类型的Service，而且有一对Port
+
+可以通过集群外的主机访问 节点IP:31928访问服务了
+
+http://127.0.0.1:30477/
+
+
+
+
+
+### 删除Service
+
+命令：
+
+```sh
+kubectl delete svc Service名称 -n 命名空间名称
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete svc svc-nginx -n test
+service "svc-nginx" deleted
+PS C:\Users\mao\Desktop> kubectl delete svc svc-nginx3 -n test
+service "svc-nginx3" deleted
+PS C:\Users\mao\Desktop> kubectl get svc svc-nginx3 -n test -o wide
+Error from server (NotFound): services "svc-nginx3" not found
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### 配置文件方式创建Service
