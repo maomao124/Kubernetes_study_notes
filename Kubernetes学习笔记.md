@@ -3837,7 +3837,358 @@ spec:  #必选，Pod中容器的详细定义
 
 
 
+```sh
+PS C:\Users\mao\Desktop> kubectl explain pod
+KIND:     Pod
+VERSION:  v1
+
+DESCRIPTION:
+     Pod is a collection of containers that can run on a host. This resource is
+     created by clients and scheduled onto hosts.
+
+FIELDS:
+   apiVersion   <string>
+     APIVersion defines the versioned schema of this representation of an
+     object. Servers should convert recognized schemas to the latest internal
+     value, and may reject unrecognized values. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+
+   kind <string>
+     Kind is a string value representing the REST resource this object
+     represents. Servers may infer this from the endpoint the client submits
+     requests to. Cannot be updated. In CamelCase. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+
+   metadata     <Object>
+     Standard object's metadata. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+
+   spec <Object>
+     Specification of the desired behavior of the pod. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+
+   status       <Object>
+     Most recently observed status of the pod. This data may not be up to date.
+     Populated by the system. Read-only. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl explain pod.metadata
+KIND:     Pod
+VERSION:  v1
+
+RESOURCE: metadata <Object>
+
+DESCRIPTION:
+     Standard object's metadata. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+
+     ObjectMeta is metadata that all persisted resources must have, which
+     includes all objects users must create.
+
+FIELDS:
+   annotations  <map[string]string>
+     Annotations is an unstructured key value map stored with a resource that
+     may be set by external tools to store and retrieve arbitrary metadata. They
+     are not queryable and should be preserved when modifying objects. More
+     info: http://kubernetes.io/docs/user-guide/annotations
+
+   creationTimestamp    <string>
+     CreationTimestamp is a timestamp representing the server time when this
+     object was created. It is not guaranteed to be set in happens-before order
+     across separate operations. Clients may not set this value. It is
+     represented in RFC3339 form and is in UTC.
+
+     Populated by the system. Read-only. Null for lists. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+
+   deletionGracePeriodSeconds   <integer>
+     Number of seconds allowed for this object to gracefully terminate before it
+     will be removed from the system. Only set when deletionTimestamp is also
+     set. May only be shortened. Read-only.
+
+   deletionTimestamp    <string>
+     DeletionTimestamp is RFC 3339 date and time at which this resource will be
+     deleted. This field is set by the server when a graceful deletion is
+     requested by the user, and is not directly settable by a client. The
+     resource is expected to be deleted (no longer visible from resource lists,
+     and not reachable by name) after the time in this field, once the
+     finalizers list is empty. As long as the finalizers list contains items,
+     deletion is blocked. Once the deletionTimestamp is set, this value may not
+     be unset or be set further into the future, although it may be shortened or
+     the resource may be deleted prior to this time. For example, a user may
+     request that a pod is deleted in 30 seconds. The Kubelet will react by
+     sending a graceful termination signal to the containers in the pod. After
+     that 30 seconds, the Kubelet will send a hard termination signal (SIGKILL)
+     to the container and after cleanup, remove the pod from the API. In the
+     presence of network partitions, this object may still exist after this
+     timestamp, until an administrator or automated process can determine the
+     resource is fully terminated. If not set, graceful deletion of the object
+     has not been requested.
+
+     Populated by the system when a graceful deletion is requested. Read-only.
+     More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+
+   finalizers   <[]string>
+     Must be empty before the object is deleted from the registry. Each entry is
+     an identifier for the responsible component that will remove the entry from
+     the list. If the deletionTimestamp of the object is non-nil, entries in
+     this list can only be removed. Finalizers may be processed and removed in
+     any order. Order is NOT enforced because it introduces significant risk of
+     stuck finalizers. finalizers is a shared field, any actor with permission
+     can reorder it. If the finalizer list is processed in order, then this can
+     lead to a situation in which the component responsible for the first
+     finalizer in the list is waiting for a signal (field value, external
+     system, or other) produced by a component responsible for a finalizer later
+     in the list, resulting in a deadlock. Without enforced ordering finalizers
+     are free to order amongst themselves and are not vulnerable to ordering
+     changes in the list.
+
+   generateName <string>
+     GenerateName is an optional prefix, used by the server, to generate a
+     unique name ONLY IF the Name field has not been provided. If this field is
+     used, the name returned to the client will be different than the name
+     passed. This value will also be combined with a unique suffix. The provided
+     value has the same validation rules as the Name field, and may be truncated
+     by the length of the suffix required to make the value unique on the
+     server.
+
+     If this field is specified and the generated name exists, the server will
+     return a 409.
+
+     Applied only if Name is not specified. More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+
+   generation   <integer>
+     A sequence number representing a specific generation of the desired state.
+     Populated by the system. Read-only.
+
+   labels       <map[string]string>
+     Map of string keys and values that can be used to organize and categorize
+     (scope and select) objects. May match selectors of replication controllers
+     and services. More info: http://kubernetes.io/docs/user-guide/labels
+
+   managedFields        <[]Object>
+     ManagedFields maps workflow-id and version to the set of fields that are
+     managed by that workflow. This is mostly for internal housekeeping, and
+     users typically shouldn't need to set or understand this field. A workflow
+     can be the user's name, a controller's name, or the name of a specific
+     apply path like "ci-cd". The set of fields is always in the version that
+     the workflow used when modifying the object.
+
+   name <string>
+     Name must be unique within a namespace. Is required when creating
+     resources, although some resources may allow a client to request the
+     generation of an appropriate name automatically. Name is primarily intended
+     for creation idempotence and configuration definition. Cannot be updated.
+     More info: http://kubernetes.io/docs/user-guide/identifiers#names
+
+   namespace    <string>
+     Namespace defines the space within which each name must be unique. An empty
+     namespace is equivalent to the "default" namespace, but "default" is the
+     canonical representation. Not all objects are required to be scoped to a
+     namespace - the value of this field for those objects will be empty.
+
+     Must be a DNS_LABEL. Cannot be updated. More info:
+     http://kubernetes.io/docs/user-guide/namespaces
+
+   ownerReferences      <[]Object>
+     List of objects depended by this object. If ALL objects in the list have
+     been deleted, this object will be garbage collected. If this object is
+     managed by a controller, then an entry in this list will point to this
+     controller, with the controller field set to true. There cannot be more
+     than one managing controller.
+
+   resourceVersion      <string>
+     An opaque value that represents the internal version of this object that
+     can be used by clients to determine when objects have changed. May be used
+     for optimistic concurrency, change detection, and the watch operation on a
+     resource or set of resources. Clients must treat these values as opaque and
+     passed unmodified back to the server. They may only be valid for a
+     particular resource or set of resources.
+
+     Populated by the system. Read-only. Value must be treated as opaque by
+     clients and . More info:
+     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+
+   selfLink     <string>
+     Deprecated: selfLink is a legacy read-only field that is no longer
+     populated by the system.
+
+   uid  <string>
+     UID is the unique in time and space value for this object. It is typically
+     generated by the server on successful creation of a resource and is not
+     allowed to change on PUT operations.
+
+     Populated by the system. Read-only. More info:
+     http://kubernetes.io/docs/user-guide/identifiers#uids
+
+PS C:\Users\mao\Desktop>
+```
 
 
 
+所有资源的一级属性都是一样的，主要包含5部分：
+
+- **apiVersion   \<string>** ：版本，由kubernetes内部定义，版本号必须可以用 kubectl api-versions 查询到
+- **kind \<string>**  ：类型，由kubernetes内部定义，版本号必须可以用 kubectl api-resources 查询到
+
+- **metadata   \<Object>**  ：元数据，主要是资源标识和说明，常用的有name、namespace、labels等
+
+- **spec \<Object>**  ：描述，这是配置中最重要的一部分，里面是对各种资源配置的详细描述                
+
+- **status  \<Object>** ：状态信息，里面的内容不需要定义，由kubernetes自动生成
+
+
+
+spec中：
+
+- **containers   <[]Object>**  ：容器列表，用于定义容器的详细信息 
+- **nodeName \<String>** ： 根据nodeName的值将pod调度到指定的Node节点上
+- **nodeSelector   <map[]>** ：根据NodeSelector中定义的信息选择将该Pod调度到包含这些label的Node 上
+- **hostNetwork  \<boolean>** ：是否使用主机网络模式，默认为false，如果设置为true，表示使用宿主机网络
+- **volumes      <[]Object>**  ：存储卷，用于定义Pod上面挂在的存储信息 
+- **restartPolicy	\<string>**  ：重启策略，表示Pod在遇到故障的时候的处理策略
+
+
+
+
+
+## Pod配置
+
+`pod.spec.containers`属性如下：
+
+```yaml
+KIND:     Pod
+VERSION:  v1
+RESOURCE: containers <[]Object>   # 数组，代表可以有多个容器
+FIELDS:
+   name  <string>     # 容器名称
+   image <string>     # 容器需要的镜像地址
+   imagePullPolicy  <string> # 镜像拉取策略 
+   command  <[]string> # 容器的启动命令列表，如不指定，使用打包时使用的启动命令
+   args     <[]string> # 容器的启动命令需要的参数列表
+   env      <[]Object> # 容器环境变量的配置
+   ports    <[]Object>     # 容器需要暴露的端口号列表
+   resources <Object>      # 资源限制和资源请求的设置
+```
+
+
+
+
+
+### 镜像拉取策略
+
+imagePullPolicy属性，kubernetes支持配置三种拉取策略：
+
+- Always：总是从远程仓库拉取镜像（一直远程下载）
+- IfNotPresent：本地有则使用本地镜像，本地没有则从远程仓库拉取镜像（本地有就本地  本地没远程下载）
+- Never：只使用本地镜像，从不去远程仓库拉取，本地没有就报错 （一直使用本地）
+
+
+
+如果镜像tag为具体版本号， 默认策略是：IfNotPresent。如果镜像tag为：latest（最终版本） ，默认策略是always
+
+
+
+
+
+### 启动命令
+
+command，用于在pod中的容器初始化完毕之后运行一个命令
+
+
+
+
+
+### 环境变量
+
+env属性，环境变量，用于在pod中的容器设置环境变量
+
+示例：
+
+```
+env:
+    - name: "username"
+      value: "admin"
+    - name: "password"
+      value: "123456"
+```
+
+
+
+
+
+### 端口设置
+
+ports属性。
+
+ports支持的子选项：
+
+```sh
+PS C:\Users\mao\Desktop> kubectl explain pod.spec.containers.ports
+KIND:     Pod
+VERSION:  v1
+
+RESOURCE: ports <[]Object>
+
+DESCRIPTION:
+     List of ports to expose from the container. Not specifying a port here DOES
+     NOT prevent that port from being exposed. Any port which is listening on
+     the default "0.0.0.0" address inside a container will be accessible from
+     the network. Modifying this array with strategic merge patch may corrupt
+     the data. For more information See
+     https://github.com/kubernetes/kubernetes/issues/108255. Cannot be updated.
+
+     ContainerPort represents a network port in a single container.
+
+FIELDS:
+   containerPort        <integer> -required-
+     Number of port to expose on the pod's IP address. This must be a valid port
+     number, 0 < x < 65536.
+
+   hostIP       <string>
+     What host IP to bind the external port to.
+
+   hostPort     <integer>
+     Number of port to expose on the host. If specified, this must be a valid
+     port number, 0 < x < 65536. If HostNetwork is specified, this must match
+     ContainerPort. Most containers do not need this.
+
+   name <string>
+     If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+     named port in a pod must have a unique name. Name for the port that can be
+     referred to by services.
+
+   protocol     <string>
+     Protocol for port. Must be UDP, TCP, or SCTP. Defaults to "TCP".
+     Possible enum values:
+     - `"SCTP"` is the SCTP protocol.
+     - `"TCP"` is the TCP protocol.
+     - `"UDP"` is the UDP protocol.
+
+PS C:\Users\mao\Desktop>
+```
+
+
+
+```sh
+   name         <string>  # 端口名称，如果指定，必须保证name在pod中是唯一的		
+   containerPort<integer> # 容器要监听的端口(0<x<65536)
+   hostPort     <integer> # 容器要在主机上公开的端口，如果设置，主机上只能运行容器的一个副本(一般省略) 
+   hostIP       <string>  # 要将外部端口绑定到的主机IP(一般省略)
+   protocol     <string>  # 端口协议。必须是UDP、TCP或SCTP。默认为“TCP”。
+```
+
+
+
+
+
+
+
+### 资源配额
 
