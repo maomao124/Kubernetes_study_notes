@@ -4192,3 +4192,132 @@ PS C:\Users\mao\Desktop>
 
 ### 资源配额
 
+容器中的程序要运行，肯定是要占用一定资源的，比如cpu和内存等，如果不对某个容器的资源做限制，那么它就可能吃掉大量资源，导致其它容器无法运行
+
+k8s主要通过resources选项实现，他有两个子选项：
+
+- limits：用于限制运行时容器的最大占用资源，当容器占用资源超过limits时会被终止，并进行重启
+
+- requests ：用于设置容器需要的最小资源，如果环境资源不够，容器将无法启动
+
+
+
+示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    resources: # 资源配额
+      limits:  # 限制资源（上限）
+        cpu: "2" # CPU限制，单位是core数
+        memory: "10Gi" # 内存限制
+      requests: # 请求资源（下限）
+        cpu: "1"  # CPU限制，单位是core数
+        memory: "10Mi"  # 内存限制
+```
+
+
+
+内存大小，可以使用Gi、Mi、G、M等形式
+
+
+
+
+
+
+
+
+
+## Pod生命周期
+
+生命周期主要包含下面的过程：
+
+- pod创建过程
+
+- 运行初始化容器（init container）过程
+
+- 运行主容器（main container）
+
+  - 容器启动后钩子（post start）、容器终止前钩子（pre stop）
+
+  - 容器的存活性探测（liveness probe）、就绪性探测（readiness probe）
+
+- pod终止过程
+
+
+
+![image-20230805205635743](img/Kubernetes学习笔记/image-20230805205635743.png)
+
+
+
+
+
+
+
+Pod会出现5种**状态**（**相位**），分别如下：
+
+- 挂起（Pending）：apiserver已经创建了pod资源对象，但它尚未被调度完成或者仍处于下载镜像的过程中
+- 运行中（Running）：pod已经被调度至某节点，并且所有容器都已经被kubelet创建完成
+- 成功（Succeeded）：pod中的所有容器都已经成功终止并且不会被重启
+- 失败（Failed）：所有容器都已经终止，但至少有一个容器终止失败，即容器返回了非0值的退出状态
+- 未知（Unknown）：apiserver无法正常获取到pod对象的状态信息，通常由网络通信失败所导致
+
+
+
+
+
+
+
+### 创建和终止
+
+![image-20230805205946594](img/Kubernetes学习笔记/image-20230805205946594.png)
+
+
+
+
+
+创建流程：
+
+1. 用户通过kubectl或其他api客户端提交需要创建的pod信息给apiServer
+
+2. apiServer开始生成pod对象的信息，并将信息存入etcd，然后返回确认信息至客户端
+
+3. apiServer开始反映etcd中的pod对象的变化，其它组件使用watch机制来跟踪检查apiServer上的变动
+
+4. scheduler发现有新的pod对象要创建，开始为Pod分配主机并将结果信息更新至apiServer
+
+5. node节点上的kubelet发现有pod调度过来，尝试调用docker启动容器，并将结果回送至apiServer
+
+6. apiServer将接收到的pod状态信息存入etcd中
+
+
+
+终止流程：
+
+1. 用户向apiServer发送删除pod对象的命令
+
+2. apiServcer中的pod对象信息会随着时间的推移而更新，在宽限期内（默认30s），pod被视为dead
+
+3. 将pod标记为terminating状态
+
+4. kubelet在监控到pod对象转为terminating状态的同时启动pod关闭过程
+
+5. 端点控制器监控到pod对象的关闭行为时将其从所有匹配到此端点的service资源的端点列表中移除
+
+6. 如果当前pod对象定义了preStop钩子处理器，则在其标记为terminating后即会以同步的方式启动执行
+
+7. pod对象中的容器进程收到停止信号
+
+8. 宽限期结束后，若pod中还存在仍在运行的进程，那么pod对象会收到立即终止的信号
+
+9. kubelet请求apiServer将此pod资源的宽限期设置为0从而完成删除操作，此时pod对于用户已不可见
+
+
+
