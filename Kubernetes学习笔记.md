@@ -4321,3 +4321,235 @@ Pod会出现5种**状态**（**相位**），分别如下：
 
 
 
+
+
+### 初始化
+
+初始化容器是在pod的主容器启动之前要运行的容器：
+
+1. 初始化容器必须运行完成直至结束，若某初始化容器运行失败，那么kubernetes需要重启它直到成功完成
+2. 初始化容器必须按照定义的顺序执行，当且仅当前一个成功之后，后面的一个才能运行
+
+
+
+初始化容器有很多的应用场景，下面列出的是最常见的几个：
+
+- 提供主容器镜像中不具备的工具程序或自定义代码
+- 初始化容器要先于应用容器串行启动并运行完成，因此可用于延后应用容器的启动直至其依赖的条件得到满足
+
+
+
+场景：以主容器来运行nginx，但是要求在运行nginx之前先要能够连接上mysql和redis所在服务器
+
+```
+spec:
+  containers:
+  - name: main-container
+    image: 
+    ports: 
+    - name: nginx-port
+      containerPort: 80
+  initContainers:
+  - name: test-mysql
+    image: 
+    command: []
+  - name: redis
+    image: 
+    command: []
+```
+
+
+
+
+
+### 钩子函数
+
+钩子函数能够感知自身生命周期中的事件，并在相应的时刻到来时运行用户指定的程序代码
+
+kubernetes在主容器的启动之后和停止之前提供了两个钩子函数：
+
+- post start：容器创建之后执行，如果失败了会重启容器
+- pre stop  ：容器终止之前执行，执行完成之后容器将成功终止，在其完成之前会阻塞删除容器的操作
+
+
+
+钩子处理器支持使用下面三种方式定义动作：
+
+* Exec命令：在容器内执行一次命令
+* TCPSocket：在当前容器尝试访问指定的socket
+* HTTPGet：在当前容器中向某url发起http请求
+
+
+
+示例：
+
+```yaml
+……
+  lifecycle:
+    postStart: 
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+……
+```
+
+```yaml
+……      
+  lifecycle:
+    postStart:
+      tcpSocket:
+        port: 8080
+……
+```
+
+```yaml
+……
+  lifecycle:
+    postStart:
+      httpGet:
+        path: / #URI地址
+        port: 80 #端口号
+        host: 192.168.109.100 #主机地址
+        scheme: HTTP #支持的协议，http或者https
+……
+```
+
+
+
+
+
+```yaml
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - name: nginx-port
+      containerPort: 80
+    lifecycle:
+      postStart: 
+        exec: # 在容器启动的时候执行一个命令，修改掉nginx的默认首页内容
+          command: ["/bin/sh", "-c", "echo postStart... > /usr/share/nginx/html/index.html"]
+      preStop:
+        exec: # 在容器停止之前停止nginx服务
+          command: ["/usr/sbin/nginx","-s","quit"]
+```
+
+
+
+
+
+### 容器探测
+
+容器探测用于检测容器中的应用实例是否正常工作，是保障业务可用性的一种传统机制。如果经过探测，实例的状态不符合预期，那么kubernetes就会把该问题实例" 摘除 "，不承担业务流量。kubernetes提供了两种探针来实现容器探测，分别是：
+
+- liveness probes：存活性探针，用于检测应用实例当前是否处于正常运行状态，如果不是，k8s会重启容器
+
+- readiness probes：就绪性探针，用于检测应用实例当前是否可以接收请求，如果不能，k8s不会转发流量
+
+
+
+livenessProbe 决定是否重启容器，readinessProbe 决定是否将请求转发给容器
+
+
+
+探针目前均支持三种探测方式：
+
+* Exec命令：在容器内执行一次命令，如果命令执行的退出码为0，则认为程序正常，否则不正常
+* TCPSocket：将会尝试访问一个用户容器的端口，如果能够建立这条连接，则认为程序正常，否则不正常
+* HTTPGet：调用容器内Web应用的URL，如果返回的状态码在200和399之间，则认为程序正常，否则不正常
+
+
+
+```yaml
+……
+  livenessProbe:
+    exec:
+      command:
+      - cat
+      - /tmp/healthy
+……
+```
+
+```yaml
+……      
+  livenessProbe:
+    tcpSocket:
+      port: 8080
+……
+```
+
+```yaml
+……
+  livenessProbe:
+    httpGet:
+      path: / #URI地址
+      port: 80 #端口号
+      host: 127.0.0.1 #主机地址
+      scheme: HTTP #支持的协议，http或者https
+……
+```
+
+
+
+
+
+```yaml
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - name: nginx-port
+      containerPort: 80
+    lifecycle:
+      postStart: 
+        exec: # 在容器启动的时候执行一个命令，修改掉nginx的默认首页内容
+          command: ["/bin/sh", "-c", "echo postStart... > /usr/share/nginx/html/index.html"]
+      preStop:
+        exec: # 在容器停止之前停止nginx服务
+          command: ["/usr/sbin/nginx","-s","quit"]
+    livenessProbe:
+      tcpSocket:
+        port: 8080 # 尝试访问8080端口
+```
+
+
+
+```yaml
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - name: nginx-port
+      containerPort: 80
+    lifecycle:
+      postStart: 
+        exec: # 在容器启动的时候执行一个命令，修改掉nginx的默认首页内容
+          command: ["/bin/sh", "-c", "echo postStart... > /usr/share/nginx/html/index.html"]
+      preStop:
+        exec: # 在容器停止之前停止nginx服务
+          command: ["/usr/sbin/nginx","-s","quit"]
+    livenessProbe:
+      httpGet:  # 其实就是访问http://127.0.0.1:80/hello  
+        scheme: HTTP #支持的协议，http或者https
+        port: 80 #端口号
+        path: /hello #URI地址
+```
+
+
+
+其它参数：
+
+`initialDelaySeconds  <integer>  # 容器启动后等待多少秒执行第一次探测
+ timeoutSeconds       <integer>  # 探测超时时间。默认1秒，最小1秒
+ periodSeconds        <integer>  # 执行探测的频率。默认是10秒，最小1秒
+ failureThreshold     <integer>  # 连续探测失败多少次才被认定为失败。默认是3。最小值是1
+ successThreshold     <integer>  # 连续探测成功多少次才被认定为成功。默认是1`
+
+
+
+
+
