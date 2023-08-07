@@ -4553,3 +4553,140 @@ spec:
 
 
 
+
+
+### 重启策略
+
+一旦容器探测出现了问题，kubernetes就会对容器所在的Pod进行重启，其实这是由pod的重启策略决定的，pod的重启策略有3种：
+
+* Always ：容器失效时，自动重启该容器
+* OnFailure ： 容器终止运行且退出码不为0时重启
+* Never ： 不论状态为何，都不重启该容器
+
+
+
+重启策略适用于pod对象中的所有容器，首次需要重启的容器，将在其需要时立即进行重启，随后再次需要重启的操作将由kubelet延迟一段时间后进行，且反复的重启操作的延迟时长以此为10s、20s、40s、80s、160s和300s，300s是最大延迟时长
+
+
+
+示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+    ports:
+    - name: 
+      containerPort: 80
+    livenessProbe:
+      httpGet:
+        scheme: HTTP
+        port: 80
+        path: /hello
+  restartPolicy: Never # 设置重启策略为Never
+```
+
+
+
+
+
+
+
+## Pod调度
+
+一个Pod在哪个Node节点上运行，是由Scheduler组件采用相应的算法计算出来的，这个过程是不受人工控制的。但是在实际使用中，这并不满足的需求，因为很多情况下，我们想控制某些Pod到达某些节点上，这就要求了解kubernetes对Pod的调度规则。
+
+kubernetes提供了四大类调度方式：
+
+* 自动调度：运行在哪个节点上完全由Scheduler经过一系列的算法计算得出
+* 定向调度：NodeName、NodeSelector
+* 亲和性调度：NodeAffinity、PodAffinity、PodAntiAffinity
+* 污点（容忍）调度：Taints、Toleration
+
+
+
+
+
+### 定向调度
+
+ 定向调度，指的是利用在pod上声明nodeName或者nodeSelector，以此将Pod调度到期望的node节点上
+
+NodeName用于强制约束将Pod调度到指定的Name的Node节点上。这种方式，其实是直接跳过Scheduler的调度逻辑，直接将Pod调度到指定名称的节点
+
+
+
+示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+  nodeName: node1 # 指定调度到node1节点上
+```
+
+
+
+NodeSelector用于将pod调度到添加了指定标签的node节点上。它是通过kubernetes的label-selector机制实现的，也就是说，在pod创建之前，会由scheduler使用MatchNodeSelector调度策略进行label匹配，找出目标node，然后将pod调度到目标节点，该匹配规则是强制约束
+
+
+
+添加节点标签命令：
+
+```sh
+kubectl label nodes node名称 key=value
+```
+
+
+
+示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+  nodeSelector: 
+    key: value 
+```
+
+
+
+
+
+### 亲和性调度
+
+定向调度如果没有满足条件的Node，那么Pod将不会被运行，即使在集群中还有可用Node列表也不行，这就限制了它的使用场景。
+
+基于上面的问题，kubernetes还提供了一种亲和性调度（Affinity）。它在NodeSelector的基础之上的进行了扩展，可以通过配置的形式，实现优先选择满足条件的Node进行调度，如果没有，也可以调度到不满足条件的节点上，使调度更加灵活
+
+
+
+Affinity主要分为三类：
+
+- nodeAffinity(node亲和性）: 以node为目标，解决pod可以调度到哪些node的问题
+
+- podAffinity(pod亲和性) :  以pod为目标，解决pod可以和哪些已存在的pod部署在同一个拓扑域中的问题
+
+- podAntiAffinity(pod反亲和性) :  以pod为目标，解决pod不能和哪些已存在pod部署在同一个拓扑域中的问题
+
+
+
+
+
