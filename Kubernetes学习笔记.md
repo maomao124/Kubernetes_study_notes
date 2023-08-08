@@ -4688,5 +4688,186 @@ Affinity主要分为三类：
 
 
 
+**亲和性**：如果两个应用频繁交互，那就有必要利用亲和性让两个应用的尽可能的靠近，这样可以减少因网络通信而带来的性能损耗。
+
+**反亲和性**：当应用的采用多副本部署时，有必要采用反亲和性让各个应用实例打散分布在各个node上，这样可以提高服务的高可用性。
+
+
+
+NodeAffinity配置：
+
+```
+pod.spec.affinity.nodeAffinity
+  requiredDuringSchedulingIgnoredDuringExecution  Node节点必须满足指定的所有规则才可以，相当于硬限制
+    nodeSelectorTerms  节点选择列表
+      matchFields   按节点字段列出的节点选择器要求列表
+      matchExpressions   按节点标签列出的节点选择器要求列表(推荐)
+        key    键
+        values 值
+        operator 关系符 支持Exists, DoesNotExist, In, NotIn, Gt, Lt
+  preferredDuringSchedulingIgnoredDuringExecution 优先调度到满足指定的规则的Node，相当于软限制 (倾向)
+    preference   一个节点选择器项，与相应的权重相关联
+      matchFields   按节点字段列出的节点选择器要求列表
+      matchExpressions   按节点标签列出的节点选择器要求列表(推荐)
+        key    键
+        values 值
+        operator 关系符 支持In, NotIn, Exists, DoesNotExist, Gt, Lt
+	weight 倾向权重，在范围1-100。
+```
+
+
+
+```
+关系符的使用说明:
+
+- matchExpressions:
+  - key: nodeenv              # 匹配存在标签的key为nodeenv的节点
+    operator: Exists
+  - key: nodeenv              # 匹配标签的key为nodeenv,且value是"xxx"或"yyy"的节点
+    operator: In
+    values: ["xxx","yyy"]
+  - key: nodeenv              # 匹配标签的key为nodeenv,且value大于"xxx"的节点
+    operator: Gt
+    values: "xxx"
+```
+
+
+
+NodeAffinity示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+  affinity:  #亲和性设置
+    nodeAffinity: #设置node亲和性
+      requiredDuringSchedulingIgnoredDuringExecution: # 硬限制
+        nodeSelectorTerms:
+        - matchExpressions: # 匹配env的值在["xxx","yyy"]中的标签
+          - key: nodeenv
+            operator: In
+            values: ["xxx","yyy"]
+```
+
+
+
+
+
+PodAffinity配置：
+
+```
+pod.spec.affinity.podAffinity
+  requiredDuringSchedulingIgnoredDuringExecution  硬限制
+    namespaces       指定参照pod的namespace
+    topologyKey      指定调度作用域
+    labelSelector    标签选择器
+      matchExpressions  按节点标签列出的节点选择器要求列表(推荐)
+        key    键
+        values 值
+        operator 关系符 支持In, NotIn, Exists, DoesNotExist.
+      matchLabels    指多个matchExpressions映射的内容
+  preferredDuringSchedulingIgnoredDuringExecution 软限制
+    podAffinityTerm  选项
+      namespaces      
+      topologyKey
+      labelSelector
+        matchExpressions  
+          key    键
+          values 值
+          operator
+        matchLabels 
+    weight 倾向权重，在范围1-100
+```
+
+
+
+topologyKey用于指定调度时作用域，如果指定为kubernetes.io/hostname，那就是以Node节点为区分范围，如果指定为beta.kubernetes.io/os,则以Node节点的操作系统类型来区分
+
+
+
+示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+  affinity:  #亲和性设置
+    podAffinity: #设置pod亲和性
+      requiredDuringSchedulingIgnoredDuringExecution: # 硬限制
+      - labelSelector:
+          matchExpressions: # 匹配env的值在["xxx","yyy"]中的标签
+          - key: podenv
+            operator: In
+            values: ["xxx","yyy"]
+        topologyKey: kubernetes.io/hostname
+```
+
+
+
+新Pod必须要与拥有标签nodeenv=xxx或者nodeenv=yyy的pod在同一Node上
+
+
+
+PodAntiAffinity示例：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: 
+  namespace: 
+spec:
+  containers:
+  - name: 
+    image: 
+  affinity:  #亲和性设置
+    podAntiAffinity: #设置pod亲和性
+      requiredDuringSchedulingIgnoredDuringExecution: # 硬限制
+      - labelSelector:
+          matchExpressions: # 匹配podenv的值在["pro"]中的标签
+          - key: podenv
+            operator: In
+            values: ["pro"]
+        topologyKey: kubernetes.io/hostname
+```
+
+
+
+新Pod必须要与拥有标签nodeenv=pro的pod不在同一Node上
+
+
+
+
+
+### 污点和容忍
+
+通过在Node上添加污点属性，来决定是否允许Pod调度过来。
+
+Node被设置上污点之后就和Pod之间存在了一种相斥的关系，进而拒绝Pod调度进来，甚至可以将已经存在的Pod驱逐出去
+
+
+
+污点的格式为：`key=value:effect`, key和value是污点的标签，effect描述污点的作用，支持如下三个选项：
+
+* **PreferNoSchedule**：kubernetes将尽量避免把Pod调度到具有该污点的Node上，除非没有其他节点可调度
+* **NoSchedule**：kubernetes将不会把Pod调度到具有该污点的Node上，但不会影响当前Node上已存在的Pod
+* **NoExecute**：kubernetes将不会把Pod调度到具有该污点的Node上，同时也会将Node上已存在的Pod驱离
+
+
+
+
+
 
 
