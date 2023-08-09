@@ -4869,5 +4869,149 @@ Node被设置上污点之后就和Pod之间存在了一种相斥的关系，进�
 
 
 
+设置污点：
+
+```sh
+kubectl taint nodes node1 key=value:effect
+```
+
+
+
+去除污点：
+
+```sh
+kubectl taint nodes node1 key:effect-
+```
+
+
+
+去除所有污点：
+
+```sh
+kubectl taint nodes node1 key-
+```
+
+
+
+
+
+使用kubeadm搭建的集群，默认就会给master节点添加一个污点标记,所以pod就不会调度到master节点上
+
+
+
+污点就是拒绝，容忍就是忽略，Node通过污点拒绝pod调度上去，Pod通过容忍忽略拒绝
+
+
+
+配置：
+
+```
+FIELDS:
+   key       # 对应着要容忍的污点的键，空意味着匹配所有的键
+   value     # 对应着要容忍的污点的值
+   operator  # key-value的运算符，支持Equal和Exists（默认）
+   effect    # 对应污点的effect，空意味着匹配所有影响
+   tolerationSeconds   # 容忍时间, 当effect为NoExecute时生效，表示pod在Node上的停留时间
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Pod控制器
+
+## 概述
+
+Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方式可以将其分为两类：
+
+- 自主式pod：kubernetes直接创建出来的Pod，这种pod删除后就没有了，也不会重建
+
+- 控制器创建的pod：kubernetes通过控制器创建的pod，这种pod删除了之后还会自动重建
+
+
+
+Pod控制器是管理pod的中间层，使用Pod控制器之后，只需要告诉Pod控制器，想要多少个什么样的Pod就可以了，它会创建出满足条件的Pod并确保每一个Pod资源处于用户期望的目标状态。如果Pod资源在运行中出现故障，它会基于指定策略重新编排Pod
+
+
+
+在kubernetes中，有很多类型的pod控制器，每种都有自己的适合的场景：
+
+- ReplicationController：比较原始的pod控制器，已经被废弃，由ReplicaSet替代
+
+- ReplicaSet：保证副本数量一直维持在期望值，并支持pod数量扩缩容，镜像版本升级
+
+- Deployment：通过控制ReplicaSet来控制Pod，并支持滚动升级、回退版本
+
+- Horizontal Pod Autoscaler：可以根据集群负载自动水平调整Pod的数量，实现削峰填谷
+
+- DaemonSet：在集群中的指定Node上运行且仅运行一个副本，一般用于守护进程类的任务
+
+- Job：它创建出来的pod只要完成任务就立即退出，不需要重启或重建，用于执行一次性任务
+
+- Cronjob：它创建的Pod负责周期性任务控制，不需要持续后台运行
+
+- StatefulSet：管理有状态应用
+
+
+
+
+
+## ReplicaSet
+
+简称RS，ReplicaSet的主要作用是**保证一定数量的pod正常运行**，它会持续监听这些Pod的运行状态，一旦Pod发生故障，就会重启或重建。同时它还支持对pod数量的扩缩容和镜像版本的升降级
+
+
+
+![image-20230809221425236](img/Kubernetes学习笔记/image-20230809221425236.png)
+
+
+
+
+
+资源清单文件如下：
+
+```yaml
+apiVersion: apps/v1 # 版本号
+kind: ReplicaSet # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: rs
+spec: # 详情描述
+  replicas: 3 # 副本数量
+  selector: # 选择器，通过它指定该控制器管理哪些pod
+    matchLabels:      # Labels匹配规则
+      app: nginx-pod
+    matchExpressions: # Expressions匹配规则
+      - {key: app, operator: In, values: [nginx-pod]}
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+
+
+
+* replicas：指定副本数量，其实就是当前rs创建出来的pod的数量，默认为1
+* selector：选择器，它的作用是建立pod控制器和pod之间的关联关系，采用的Label Selector机制
+* template：模板，就是当前控制器创建pod所使用的模板
+
+
+
 
 
