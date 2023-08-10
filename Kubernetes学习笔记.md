@@ -5013,5 +5013,255 @@ spec: # 详情描述
 
 
 
+创建replicaset.yaml文件：
+
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet   
+metadata:
+  name: replicaset
+  namespace: test
+spec:
+  replicas: 3
+  selector: 
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+```
+
+
+
+
+
+创建rs：
+
+```sh
+kubectl create -f replicaset.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f replicaset.yaml
+replicaset.apps/replicaset created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+查看rs：
+
+```sh
+kubectl get rs replicaset -n test -o wide
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get rs replicaset -n test -o wide
+NAME         DESIRED   CURRENT   READY   AGE   CONTAINERS   IMAGES   SELECTOR
+replicaset   3         3         2       46s   nginx        nginx    app=nginx-pod
+PS C:\Users\mao\Desktop>
+```
+
+
+
+* DESIRED：期望副本数量  
+* CURRENT：当前副本数量  
+* READY：已经准备好提供服务的副本数量
+
+
+
+查看当前控制器创建出来的pod：
+
+```sh
+kubectl get pod -n test
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod -n test
+NAME                      READY   STATUS    RESTARTS        AGE
+nginx                     1/1     Running   4 (6m35s ago)   11d
+nginx-6cdcf8f964-mcbd2    1/1     Running   2 (6m35s ago)   8d
+nginx-6cdcf8f964-mprrn    1/1     Running   2 (6m35s ago)   8d
+nginx-6cdcf8f964-mq45j    1/1     Running   2 (6m35s ago)   8d
+nginx-6cdcf8f964-p5ggk    1/1     Running   2 (6m35s ago)   8d
+nginx-6cdcf8f964-rkcfc    1/1     Running   2 (6m35s ago)   8d
+nginx3-56f4cc4fd7-jl4pm   1/1     Running   2 (6m35s ago)   8d
+nginx3-56f4cc4fd7-mwv8r   1/1     Running   2 (6m35s ago)   8d
+nginx3-56f4cc4fd7-q7rhn   1/1     Running   2 (6m35s ago)   8d
+replicaset-bpqmd          1/1     Running   0               3m20s
+replicaset-f5zc6          1/1     Running   0               3m20s
+replicaset-nnt5s          1/1     Running   0               3m20s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+编辑rs的副本数量：
+
+```sh
+kubectl edit rs replicaset -n test
+```
+
+
+
+弹出编辑界面：
+
+![image-20230810220858144](img/Kubernetes学习笔记/image-20230810220858144.png)
+
+
+
+修改spec:replicas
+
+![image-20230810220916463](img/Kubernetes学习笔记/image-20230810220916463.png)
+
+
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl edit rs replicaset -n test
+replicaset.apps/replicaset edited
+PS C:\Users\mao\Desktop> kubectl get rs replicaset -n test -o wide
+NAME         DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES   SELECTOR
+replicaset   5         5         3       6m11s   nginx        nginx    app=nginx-pod
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+或者直接使用命令来实现：
+
+```sh
+kubectl scale rs replicaset --replicas=7 -n test
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl scale rs replicaset --replicas=7 -n test
+replicaset.apps/replicaset scaled
+PS C:\Users\mao\Desktop> kubectl get rs replicaset -n test -o wide
+NAME         DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES   SELECTOR
+replicaset   7         7         4       7m59s   nginx        nginx    app=nginx-pod
+PS C:\Users\mao\Desktop> kubectl get pod -n test
+NAME                      READY   STATUS              RESTARTS      AGE
+nginx                     1/1     Running             4 (11m ago)   11d
+nginx-6cdcf8f964-mcbd2    1/1     Running             2 (11m ago)   8d
+nginx-6cdcf8f964-mprrn    1/1     Running             2 (11m ago)   8d
+nginx-6cdcf8f964-mq45j    1/1     Running             2 (11m ago)   8d
+nginx-6cdcf8f964-p5ggk    1/1     Running             2 (11m ago)   8d
+nginx-6cdcf8f964-rkcfc    1/1     Running             2 (11m ago)   8d
+nginx3-56f4cc4fd7-jl4pm   1/1     Running             2 (11m ago)   8d
+nginx3-56f4cc4fd7-mwv8r   1/1     Running             2 (11m ago)   8d
+nginx3-56f4cc4fd7-q7rhn   1/1     Running             2 (11m ago)   8d
+replicaset-bpqmd          1/1     Running             0             8m9s
+replicaset-dp74g          0/1     ContainerCreating   0             2m19s
+replicaset-f5zc6          1/1     Running             0             8m9s
+replicaset-jxwvm          1/1     Running             0             2m19s
+replicaset-nnt5s          1/1     Running             0             8m9s
+replicaset-zj8rz          0/1     ContainerCreating   0             15s
+replicaset-zwbzl          0/1     ContainerCreating   0             15s
+PS C:\Users\mao\Desktop> kubectl get rs replicaset -n test -o wide
+NAME         DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES   SELECTOR
+replicaset   7         7         7       9m26s   nginx        nginx    app=nginx-pod
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+镜像升级：
+
+```sh
+kubectl edit rs pc-replicaset -n test
+```
+
+更改image:xxx
+
+
+
+或者：
+
+```sh
+kubectl set image rs replicaset nginx=nginx:xxx -n test
+```
+
+
+
+
+
+删除ReplicaSet：
+
+```sh
+kubectl delete rs replicaset -n test
+```
+
+
+
+使用kubectl delete命令会删除此RS以及它管理的Pod，在kubernetes删除RS前，会将RS的replicasclear调整为0，等待所有的Pod被删除后，在执行RS对象的删除
+
+如果希望仅仅删除RS对象（保留Pod），可以使用kubectl delete命令时添加--cascade=false选项
+
+
+
+也可以使用yaml直接删除：
+
+```sh
+kubectl delete -f replicaset.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl delete rs replicaset -n test
+replicaset.apps "replicaset" deleted
+PS C:\Users\mao\Desktop> kubectl get -f .\replicaset.yaml -o wide
+Error from server (NotFound): replicasets.apps "replicaset" not found
+PS C:\Users\mao\Desktop> kubectl get pod -n test
+NAME                      READY   STATUS    RESTARTS      AGE
+nginx                     1/1     Running   4 (17m ago)   11d
+nginx-6cdcf8f964-mcbd2    1/1     Running   2 (17m ago)   8d
+nginx-6cdcf8f964-mprrn    1/1     Running   2 (17m ago)   8d
+nginx-6cdcf8f964-mq45j    1/1     Running   2 (17m ago)   8d
+nginx-6cdcf8f964-p5ggk    1/1     Running   2 (17m ago)   8d
+nginx-6cdcf8f964-rkcfc    1/1     Running   2 (17m ago)   8d
+nginx3-56f4cc4fd7-jl4pm   1/1     Running   2 (17m ago)   8d
+nginx3-56f4cc4fd7-mwv8r   1/1     Running   2 (17m ago)   8d
+nginx3-56f4cc4fd7-q7rhn   1/1     Running   2 (17m ago)   8d
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+
+
+
+
+## Deployment
+
+
+
+
+
 
 
