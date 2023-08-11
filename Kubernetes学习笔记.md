@@ -5259,9 +5259,136 @@ PS C:\Users\mao\Desktop>
 
 ## Deployment
 
+为了更好的解决服务编排的问题，kubernetes在V1.2版本开始，引入了Deployment控制器。值得一提的是，这种控制器并不直接管理pod，而是通过管理ReplicaSet来简介管理Pod，即：Deployment管理ReplicaSet，ReplicaSet管理Pod。所以Deployment比ReplicaSet功能更加强大
+
+![image-20230811181950793](img/Kubernetes学习笔记/image-20230811181950793.png)
 
 
 
+
+
+Deployment主要功能：
+
+* 支持ReplicaSet的所有功能
+* 支持发布的停止、继续
+* 支持滚动升级和回滚版本
+
+
+
+资源清单文件：
+
+```yaml
+apiVersion: apps/v1 # 版本号
+kind: Deployment # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: deploy
+spec: # 详情描述
+  replicas: 3 # 副本数量
+  revisionHistoryLimit: 3 # 保留历史版本
+  paused: false # 暂停部署，默认是false
+  progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600
+  strategy: # 策略
+    type: RollingUpdate # 滚动更新策略
+    rollingUpdate: # 滚动更新
+      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数
+      maxUnavailable: 30% # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
+  selector: # 选择器，通过它指定该控制器管理哪些pod
+    matchLabels:      # Labels匹配规则
+      app: nginx-pod
+    matchExpressions: # Expressions匹配规则
+      - {key: app, operator: In, values: [nginx-pod]}
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+
+
+
+
+
+deployment支持两种更新策略：
+
+* 重建更新
+* 滚动更新
+
+可以通过`strategy`指定策略类型,支持两个属性
+
+
+
+```
+strategy：指定新的Pod替换旧的Pod的策略， 支持两个属性：
+  type：指定策略类型，支持两种策略
+    Recreate：在创建出新的Pod之前会先杀掉所有已存在的Pod
+    RollingUpdate：滚动更新，就是杀死一部分，就启动一部分，在更新过程中，存在两个版本Pod
+  rollingUpdate：当type为RollingUpdate时生效，用于为RollingUpdate设置参数，支持两个属性：
+    maxUnavailable：用来指定在升级过程中不可用Pod的最大数量，默认为25%。
+    maxSurge： 用来指定在升级过程中可以超过期望的Pod的最大数量，默认为25%。
+```
+
+
+
+重建更新：
+
+```yaml
+spec:
+  strategy: # 策略
+    type: Recreate # 重建更新
+```
+
+
+
+滚动更新：
+
+```yaml
+spec:
+  strategy: # 策略
+    type: RollingUpdate # 滚动更新策略
+    rollingUpdate:
+      maxSurge: 25% 
+      maxUnavailable: 25%
+```
+
+
+
+![image-20230811183140994](img/Kubernetes学习笔记/image-20230811183140994.png)
+
+
+
+
+
+deployment支持版本升级过程中的暂停、继续功能以及版本回退等诸多功能
+
+
+
+kubectl rollout： 版本升级相关功能，支持下面的选项：
+
+- status       显示当前升级状态
+- history     显示 升级历史记录
+
+- pause       暂停版本升级过程
+- resume    继续已经暂停的版本升级过程
+- restart      重启版本升级过程
+- undo        回滚到上一级版本（可以使用--to-revision回滚到指定版本）
+
+
+
+
+
+查看当前升级版本的状态：
+
+```sh
+kubectl rollout status deploy deploy名称 -n 命名空间名称
+```
 
 
 
