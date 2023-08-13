@@ -5680,3 +5680,149 @@ kubectl top pod -n 命名空间名称
 
 
 
+部署HPA配置·：
+
+```yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa
+  namespace: test
+spec:
+  minReplicas: 1  #最小pod数量
+  maxReplicas: 10 #最大pod数量
+  targetCPUUtilizationPercentage: 3 # CPU使用率指标
+  scaleTargetRef:   # 指定要控制的nginx信息
+    apiVersion: apps/v1
+    kind: Deployment  
+    name: nginx  
+```
+
+
+
+
+
+## DaemonSet
+
+DaemonSet类型的控制器可以保证在集群中的每一台（或指定）节点上都运行一个副本。一般适用于日志收集、节点监控等场景。也就是说，如果一个Pod提供的功能是节点级别的（每个节点都需要且只需要一个），那么这类Pod就适合使用DaemonSet类型的控制器创建
+
+
+
+![image-20230813215530736](img/Kubernetes学习笔记/image-20230813215530736.png)
+
+
+
+
+
+DaemonSet控制器的特点：
+
+- 每当向集群中添加一个节点时，指定的 Pod 副本也将添加到该节点上
+- 当节点从集群中移除时，Pod 也就被垃圾回收了
+
+
+
+DaemonSet的资源清单文件
+
+```yaml
+apiVersion: apps/v1 # 版本号
+kind: DaemonSet # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: daemonset
+spec: # 详情描述
+  revisionHistoryLimit: 3 # 保留历史版本
+  updateStrategy: # 更新策略
+    type: RollingUpdate # 滚动更新策略
+    rollingUpdate: # 滚动更新
+      maxUnavailable: 1 # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
+  selector: # 选择器，通过它指定该控制器管理哪些pod
+    matchLabels:      # Labels匹配规则
+      app: nginx-pod
+    matchExpressions: # Expressions匹配规则
+      - {key: app, operator: In, values: [nginx-pod]}
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+
+
+
+
+
+## Job
+
+Job，主要用于负责**批量处理(一次要处理指定数量任务)**短暂的**一次性(每个任务仅运行一次就结束)**任务
+
+特点如下：
+
+- 当Job创建的pod执行成功结束时，Job将记录成功结束的pod数量
+- 当成功结束的pod达到指定的数量时，Job将完成执行
+
+
+
+![image-20230813215809865](img/Kubernetes学习笔记/image-20230813215809865.png)
+
+
+
+
+
+
+
+Job的资源清单文件
+
+```yaml
+apiVersion: batch/v1 # 版本号
+kind: Job # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: job
+spec: # 详情描述
+  completions: 1 # 指定job需要成功运行Pods的次数。默认值: 1
+  parallelism: 1 # 指定job在任一时刻应该并发运行Pods的数量。默认值: 1
+  activeDeadlineSeconds: 30 # 指定job可运行的时间期限，超过时间还未结束，系统将会尝试进行终止。
+  backoffLimit: 6 # 指定job失败后进行重试的次数。默认是6
+  manualSelector: true # 是否可以使用selector选择器选择pod，默认是false
+  selector: # 选择器，通过它指定该控制器管理哪些pod
+    matchLabels:      # Labels匹配规则
+      app: counter-pod
+    matchExpressions: # Expressions匹配规则
+      - {key: app, operator: In, values: [counter-pod]}
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本
+    metadata:
+      labels:
+        app: counter-pod
+    spec:
+      restartPolicy: Never # 重启策略只能设置为Never或者OnFailure
+      containers:
+      - name: counter
+        image: busybox:1.30
+        command: ["bin/sh","-c","for i in 9 8 7 6 5 4 3 2 1; do echo $i;sleep 2;done"]
+```
+
+
+
+重启策略设置：
+
+* 如果指定为OnFailure，则job会在pod出现故障时重启容器，而不是创建pod，failed次数不变
+* 如果指定为Never，则job会在pod出现故障时创建新的pod，并且故障pod不会消失，也不会重启，failed次数加1
+* 如果指定为Always的话，就意味着一直重启，意味着job任务会重复去执行了
+
+
+
+
+
+
+
+## CronJob
+
