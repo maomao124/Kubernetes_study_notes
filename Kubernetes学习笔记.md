@@ -5826,3 +5826,109 @@ spec: # 详情描述
 
 ## CronJob
 
+CronJob控制器以Job控制器资源为其管控对象，并借助它管理pod资源对象，Job控制器定义的作业任务在其控制器资源创建之后便会立即执行，但CronJob可以以类似于Linux操作系统的周期性任务作业计划的方式控制其运行**时间点**及**重复运行**的方式。也就是说，**CronJob可以在特定的时间点(反复的)去运行job任务**。
+
+
+
+资源清单文件
+
+```yaml
+apiVersion: batch/v1beta1 # 版本号
+kind: CronJob # 类型       
+metadata: # 元数据
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签
+    controller: cronjob
+spec: # 详情描述
+  schedule: # cron格式的作业调度运行时间点,用于控制任务在什么时间执行
+  concurrencyPolicy: # 并发执行策略，用于定义前一次作业运行尚未完成时是否以及如何运行后一次的作业
+  failedJobHistoryLimit: # 为失败的任务执行保留的历史记录数，默认为1
+  successfulJobHistoryLimit: # 为成功的任务执行保留的历史记录数，默认为3
+  startingDeadlineSeconds: # 启动作业错误的超时时长
+  jobTemplate: # job控制器模板，用于为cronjob控制器生成job对象;下面其实就是job的定义
+    metadata:
+    spec:
+      completions: 1
+      parallelism: 1
+      activeDeadlineSeconds: 30
+      backoffLimit: 6
+      manualSelector: true
+      selector:
+        matchLabels:
+          app: counter-pod
+        matchExpressions: 规则
+          - {key: app, operator: In, values: [counter-pod]}
+      template:
+        metadata:
+          labels:
+            app: counter-pod
+        spec:
+          restartPolicy: Never 
+          containers:
+          - name: counter
+            image: busybox:1.30
+            command: ["bin/sh","-c","for i in 9 8 7 6 5 4 3 2 1; do echo $i;sleep 20;done"]
+```
+
+
+
+```sh
+schedule: cron表达式，用于指定任务的执行时间
+	*/1    *      *    *     *
+	<分钟> <小时> <日> <月份> <星期>
+
+    分钟 值从 0 到 59.
+    小时 值从 0 到 23.
+    日 值从 1 到 31.
+    月 值从 1 到 12.
+    星期 值从 0 到 6, 0 代表星期日
+    多个时间可以用逗号隔开； 范围可以用连字符给出；*可以作为通配符； /表示每...
+concurrencyPolicy:
+	Allow:   允许Jobs并发运行(默认)
+	Forbid:  禁止并发运行，如果上一次运行尚未完成，则跳过下一次运行
+	Replace: 替换，取消当前正在运行的作业并用新作业替换它
+```
+
+
+
+
+
+
+
+
+
+
+
+# Service
+
+## 概述
+
+在kubernetes中，pod是应用程序的载体，我们可以通过pod的ip来访问应用程序，但是pod的ip地址不是固定的，这也就意味着不方便直接采用pod的ip对服务进行访问。
+
+为了解决这个问题，kubernetes提供了Service资源，Service会对提供同一个服务的多个pod进行聚合，并且提供一个统一的入口地址。通过访问Service的入口地址就能访问到后面的pod服务
+
+
+
+![image-20230814220431713](img/Kubernetes学习笔记/image-20230814220431713.png)
+
+
+
+Service在很多情况下只是一个概念，真正起作用的其实是kube-proxy服务进程，每个Node节点上都运行着一个kube-proxy服务进程。当创建Service的时候会通过api-server向etcd写入创建的service的信息，而kube-proxy会基于监听的机制发现这种Service的变动，然后**它会将最新的Service信息转换成对应的访问规则**。
+
+
+
+![image-20230814220529056](img/Kubernetes学习笔记/image-20230814220529056.png)
+
+
+
+
+
+kube-proxy目前支持三种工作模式：
+
+* userspace 模式
+* iptables 模式
+* ipvs 模式
+
+
+
