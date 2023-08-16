@@ -5932,3 +5932,157 @@ kube-proxy目前支持三种工作模式：
 
 
 
+userspace模式下，kube-proxy会为每一个Service创建一个监听端口，发向Cluster IP的请求被Iptables规则重定向到kube-proxy监听的端口上，kube-proxy根据LB算法选择一个提供服务的Pod并和其建立链接，以将请求转发到Pod上。
+
+该模式下，kube-proxy充当了一个四层负责均衡器的角色。由于kube-proxy运行在userspace中，在进行转发处理时会增加内核和用户空间之间的数据拷贝，虽然比较稳定，但是效率比较低
+
+
+
+![image-20230816212011296](img/Kubernetes学习笔记/image-20230816212011296.png)
+
+
+
+iptables模式下，kube-proxy为service后端的每个Pod创建对应的iptables规则，直接将发向Cluster IP的请求重定向到一个Pod IP
+
+该模式下kube-proxy不承担四层负责均衡器的角色，只负责创建iptables规则。该模式的优点是较userspace模式效率更高，但不能提供灵活的LB策略，当后端Pod不可用时也无法进行重试
+
+
+
+![image-20230816212116191](img/Kubernetes学习笔记/image-20230816212116191.png)
+
+
+
+
+
+ipvs模式和iptables类似，kube-proxy监控Pod的变化并创建相应的ipvs规则。ipvs相对iptables转发效率更高。除此以外，ipvs支持更多的LB算法
+
+
+
+![image-20230816212145047](img/Kubernetes学习笔记/image-20230816212145047.png)
+
+
+
+
+
+开启ipvs，此模式必须安装ipvs内核模块，否则会降级为iptables：
+
+```sh
+kubectl edit cm kube-proxy -n kube-system
+```
+
+```sh
+kubectl delete pod -l k8s-app=kube-proxy -n kube-system
+```
+
+```sh
+ipvsadm -Ln
+```
+
+
+
+
+
+## 资源清单文件
+
+Service的资源清单文件：
+
+```yaml
+kind: Service  # 资源类型
+apiVersion: v1  # 资源版本
+metadata: # 元数据
+  name: service # 资源名称
+  namespace: test # 命名空间
+spec: # 描述
+  selector: # 标签选择器，用于确定当前service代理哪些pod
+    app: nginx
+  type: # Service类型，指定service的访问方式
+  clusterIP:  # 虚拟服务的ip地址
+  sessionAffinity: # session亲和性，支持ClientIP、None两个选项
+  ports: # 端口信息
+    - protocol: TCP 
+      port: 3017  # service端口
+      targetPort: 5003 # pod端口
+      nodePort: 31122 # 主机端口
+```
+
+
+
+属性：
+
+- ClusterIP：默认值，它是Kubernetes系统自动分配的虚拟IP，只能在集群内部访问
+- NodePort：将Service通过指定的Node上的端口暴露给外部，通过此方法，就可以在集群外部访问服务
+- LoadBalancer：使用外接负载均衡器完成到服务的负载分发，注意此模式需要外部云环境支持
+- ExternalName： 把集群外部的服务引入集群内部，直接使用
+
+
+
+
+
+## Service使用示例
+
+### 环境准备
+
+利用Deployment创建出3个pod，注意要为pod设置`app=nginx-pod`的标签
+
+deployment.yaml：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment      
+metadata:
+  name: pc-deployment
+  namespace: test
+spec: 
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+
+
+
+命令：
+
+```sh
+kubectl create -f deployment.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f deployment.yaml
+deployment.apps/pc-deployment created
+PS C:\Users\mao\Desktop>
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods -n test
+NAME                             READY   STATUS              RESTARTS      AGE
+nginx                            1/1     Running             8 (10m ago)   17d
+pc-deployment-69cbb4f6b6-4rqxf   0/1     ContainerCreating   0             98s
+pc-deployment-69cbb4f6b6-grmxk   0/1     ContainerCreating   0             98s
+pc-deployment-69cbb4f6b6-nkfv4   0/1     ContainerCreating   0             98s
+PS C:\Users\mao\Desktop> kubectl get  -f .\deployment.yaml
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+pc-deployment   0/3     3            0           106s
+PS C:\Users\mao\Desktop>
+```
+
+等待完成
+
+
+
+
+
+### ClusterIP类型的Service
+
