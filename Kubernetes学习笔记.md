@@ -6051,6 +6051,37 @@ spec:
 
 
 
+或者直接：
+
+```sh
+echo "
+apiVersion: apps/v1
+kind: Deployment      
+metadata:
+  name: pc-deployment
+  namespace: test
+spec: 
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+" > deployment.yaml
+```
+
+
+
+
+
 命令：
 
 ```sh
@@ -6085,4 +6116,264 @@ PS C:\Users\mao\Desktop>
 
 
 ### ClusterIP类型的Service
+
+#### 创建
+
+创建service-clusterip.yaml文件：
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: 10.97.97.97
+  type: ClusterIP
+  ports:
+  - port: 80  
+    targetPort: 80
+```
+
+
+
+或者直接：
+
+```sh
+echo "apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: 10.97.97.97
+  type: ClusterIP
+  ports:
+  - port: 80  
+    targetPort: 80
+" > service-clusterip.yaml
+```
+
+
+
+执行：
+
+```sh
+kubectl create -f service-clusterip.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f service-clusterip.yaml
+service/service-clusterip created
+PS C:\Users\mao\Desktop> kubectl get -f service-clusterip.yaml
+NAME                TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
+service-clusterip   ClusterIP   10.97.97.97   <none>        80/TCP    9s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+查看service的详细信息：
+
+```sh
+kubectl describe svc service-clusterip -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl describe svc service-clusterip -n test
+Name:              service-clusterip
+Namespace:         test
+Labels:            <none>
+Annotations:       <none>
+Selector:          app=nginx-pod
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                10.97.97.97
+IPs:               10.97.97.97
+Port:              <unset>  80/TCP
+TargetPort:        80/TCP
+Endpoints:         10.1.0.233:80,10.1.0.234:80,10.1.0.235:80
+Session Affinity:  None
+Events:            <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+在这里有一个Endpoints列表，里面就是当前service可以负载到的服务入口
+
+
+
+访问10.97.97.97:80观察效果
+
+
+
+#### Endpoint
+
+Endpoint是kubernetes中的一个资源对象，存储在etcd中，用来记录一个service对应的所有pod的访问地址，它是根据service配置文件中selector描述产生的。
+
+ 一个Service由一组Pod组成，这些Pod通过Endpoints暴露出来，**Endpoints是实现实际服务的端点集合**。换句话说，service和pod之间的联系是通过endpoints实现的。
+
+
+
+![image-20230829170921942](img/Kubernetes学习笔记/image-20230829170921942.png)
+
+
+
+
+
+
+
+#### 负载分发策略
+
+对Service的访问被分发到了后端的Pod上去，目前kubernetes提供了两种负载分发策略：
+
+* 如果不定义，默认使用kube-proxy的策略，比如随机、轮询
+* 基于客户端地址的会话保持模式，即来自同一个客户端发起的所有请求都会转发到固定的一个Pod上，此模式可以使在spec中添加`sessionAffinity:ClientIP`选项
+
+
+
+
+
+#### 删除service
+
+命令：
+
+```sh
+kubectl delete -f service-clusterip.yaml
+```
+
+
+
+
+
+
+
+### HeadLiness类型的Service
+
+在某些场景中，开发人员可能不想使用Service提供的负载均衡功能，而希望自己来控制负载均衡策略，针对这种情况，kubernetes提供了HeadLiness  Service，这类Service不会分配Cluster IP，如果想要访问service，只能通过service的域名进行查询
+
+
+
+#### 创建
+
+创建service-headliness.yaml
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-headliness
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None # 将clusterIP设置为None，即可创建headliness Service
+  type: ClusterIP
+  ports:
+  - port: 80    
+    targetPort: 80
+```
+
+
+
+或者：
+
+```sh
+echo "apiVersion: v1
+kind: Service
+metadata:
+  name: service-headliness
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None # 将clusterIP设置为None，即可创建headliness Service
+  type: ClusterIP
+  ports:
+  - port: 80    
+    targetPort: 80" > service-headliness.yaml
+```
+
+
+
+执行：
+
+```sh
+kubectl create -f service-headliness.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f service-headliness.yaml
+service/service-headliness created
+PS C:\Users\mao\Desktop> kubectl get -f service-headliness.yaml
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service-headliness   ClusterIP   None         <none>        80/TCP    7s
+PS C:\Users\mao\Desktop>
+```
+
+ 获取service， 发现CLUSTER-IP未分配
+
+
+
+查看service详情：
+
+```sh
+kubectl describe svc service-headliness -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl describe svc service-headliness -n test
+Name:              service-headliness
+Namespace:         test
+Labels:            <none>
+Annotations:       <none>
+Selector:          app=nginx-pod
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                None
+IPs:               None
+Port:              <unset>  80/TCP
+TargetPort:        80/TCP
+Endpoints:         10.1.0.233:80,10.1.0.234:80,10.1.0.235:80
+Session Affinity:  None
+Events:            <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+没有ip
+
+
+
+#### 删除
+
+命令：
+
+```sh
+kubectl delete -f service-headliness.yaml
+```
+
+
+
+
+
+
+
+
+
+### NodePort类型的Service
+
+
 
