@@ -6915,3 +6915,283 @@ PS C:\Users\mao\Desktop>
 
 ### Http代理
 
+创建ingress-http.yaml：
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-http
+  namespace: test
+spec:
+  rules:
+  - host: nginx.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080
+```
+
+
+
+或者直接写入：
+
+```sh
+echo "apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-http
+  namespace: test
+spec:
+  rules:
+  - host: nginx.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080" > ingress-http.yaml
+```
+
+
+
+创建：
+
+```sh
+kubectl create -f ingress-http.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl get ing ingress-http -n test
+```
+
+
+
+查看详情：
+
+```sh
+kubectl describe ing ingress-http -n test
+```
+
+
+
+```sh
+...
+Rules:
+Host                Path  Backends
+----                ----  --------
+nginx.com   / nginx-service:80 (10.244.1.96:80,10.244.1.97:80,10.244.2.112:80)
+tomcat.com  / tomcat-service:8080(10.244.1.94:8080,10.244.1.95:8080,10.244.2.111:8080)
+...
+```
+
+
+
+在本地电脑上配置host文件，解析上面的两个域名，然后,就可以分别访问
+
+
+
+
+
+### Https代理
+
+```sh
+openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/C=CN/ST=BJ/L=BJ/O=nginx/CN=123"
+```
+
+
+
+生成一个crt文件
+
+
+
+创建秘钥：
+
+```sh
+kubectl create secret tls tls-secret --key tls.key --cert tls.crt
+```
+
+
+
+生成一个key文件
+
+```sh
+PS C:\Users\mao\Desktop> cat .\tls.key
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCyjYd4iravaFM9
+GX6J8kXTjPCbUd13cywzovwzvLmRBkP3XUiQ9UFAPWoXcwl9BKD1p0WRoNYaaGr9
+BTaMSYzYJO/ruEmscnJJZ6MbLlF+fRsyOiIVqY1g0KnVhkuYRtwuapVznQx05Bcc
+su7yyKFoKgwLKn4KXdkU68JEIPr7nx1q4fljE0QbAN/mszCoXaaykThWLJZciKNd
+zDBt6/uwSlHrYtUnbpTiSKBUG/R4evWyAafCBiG/v3gAjDpmokegzaunJLhM2Vlv
+DFcye1sBpZO97tfuAkjbRJRPUxNjQq6rxgd+K5WBpSFupTcgEoSIUKvLtHS00Lco
+iQY4Ua/fAgMBAAECggEAOMh9rr4efwYkgqfa8C/WOQL3ec29KsG76ugIYMPCF/bw
+InjOHRuCFtXxKWfyOooATl9V5oxJyrguXi0MPe0eF5cXndVLyMXUxrdozbobPKi4
+v25xbIYxafqyKC+/VrwiRbirssrdLUdkekIFb7ySaDgHAH4Q+2cBJIAdleEPMHnP
+r+rBjQCguRMaW+eArPVn+QY9PJpaEoyKKIADKg8pIt/7yq0gz7mg1qeV56XaO/db
+kS5Qkr44YWRvr3NkiSOdliou5ZlKnu1W781lBfgYp/+oVol07kELpaGTkTiBVNt5
+7B+cdmLTntyEud8MBY3Yl8w86Vkaccnc+YUbQ1oVAQKBgQDQf7Rs3OnJZnRGgf34
+VX9ns1LwRgVClaCseSZG4/E34iPJglfUHSaZsZ0v8Q0tjeF0A2X1m4Kg9+L1W5qF
+uboNlGcsv5EZoO87rq678RalyQhUB2Q+XlisL+pvQC07Bp+RUTnMyHUd5yU4kx39
+gF1F9KvCYxFRDKi1BqKTQCmrnwKBgQDbO0gP2w8l7rLUm+73kAkzP9L5lvN8M4EA
+JEV4m/Usesj6aXlPirrxMDjoDmgyqgVuBde82R8poEafCzLBkOAvUN43XykZkkr7
+EzjSRBs/n6OoCqHxohAHJ1hcfo2Bh5fBdUGqPQ3r2kVM+50p5PXmV0BUqwOJt3tG
+5k135sWTwQKBgQC0q9TW+N+FbEiZyI8hIEVUwSm/l417U1l120115JPkTwuf1Fjz
+L4eBa03Ae2tl7CpPc5poqCccAXIkFwrhkj1NAyoctquvv6tO1mIH7jQn2Ppkhjsx
+aGQCYUsOuFf5bBXdwLsLXzFNhjzUt3cncpJgylIEEgCxcPzIUUWTv+fcFQKBgG+9
+25EZWrM+4y+y+y573/SbR3GoGxrnNY1Y73/2HhU50E6yi/6a+4YLyjWdgkawmmvl
+1nyPPm79HoHaN1ip+1qioWEfw9cg1c77kS67QBhByizQnpKGxByhVUxvxLiM4DDf
+D0UyMXJRopkGdqjv5tYtCsEdGYSMXO1aXYoLuhEBAoGAUUWcqu+dASnz6sJ0SwQr
+BFIkqIVb7O+t25GxpA/9Ee8TnQN+R45uYMRbrNjA+j957TvitqCqDjHye4K3orDM
+2rq4Y1emFsKbic5ZEtPW9swF6iAeJiaVw7SKIPgyNb4IY3DedNBPpDEpqpeHLmT1
+jjHFhvjOesltpBp+3ietMvk=
+-----END PRIVATE KEY-----
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+创建ingress-https.yaml：
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-https
+  namespace: test
+spec:
+  tls:
+    - hosts:
+      - nginx.com
+      - tomcat.com
+      secretName: tls-secret # 指定秘钥
+  rules:
+  - host: nginx.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080
+```
+
+
+
+或者直接创建：
+
+```sh
+echo "apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-https
+  namespace: test
+spec:
+  tls:
+    - hosts:
+      - nginx.com
+      - tomcat.com
+      secretName: tls-secret # 指定秘钥
+  rules:
+  - host: nginx.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080" > ingress-https.yaml
+```
+
+
+
+创建：
+
+```sh
+kubectl create -f ingress-https.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl get ing ingress-https -n test
+```
+
+
+
+查看详情：
+
+```sh
+kubectl describe ing ingress-https -n test
+```
+
+
+
+```sh
+...
+TLS:
+  tls-secret terminates nginx.com,tomcat.com
+Rules:
+Host              Path Backends
+----              ---- --------
+nginx.com  /  nginx-service:80 (10.244.1.97:80,10.244.1.98:80,10.244.2.119:80)
+tomcat.com /  tomcat-service:8080(10.244.1.99:8080,10.244.2.117:8080,10.244.2.120:8080)
+...
+```
+
+
+
+配置host，访问
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 数据存储
