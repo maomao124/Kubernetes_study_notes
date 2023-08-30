@@ -6375,5 +6375,219 @@ kubectl delete -f service-headliness.yaml
 
 ### NodePort类型的Service
 
+在之前的样例中，创建的Service的ip地址只有集群内部才可以访问，如果希望将Service暴露给集群外部使用，那么就要使用到另外一种类型的Service，称为NodePort类型。NodePort的工作原理其实就是**将service的端口映射到Node的一个端口上**，然后就可以通过`NodeIp:NodePort`来访问service了
+
+
+
+![image-20230830145305219](img/Kubernetes学习笔记/image-20230830145305219.png)
+
+
+
+#### 创建
+
+创建service-nodeport.yaml
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-nodeport
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30002 # 指定绑定的node的端口(默认的取值范围是：30000-32767), 如果不指定，会默认分配
+    targetPort: 80
+```
+
+
+
+或者：
+
+```sh
+echo "apiVersion: v1
+kind: Service
+metadata:
+  name: service-nodeport
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  type: NodePort
+  ports:
+  - port: 80
+    nodePort: 30002 # 指定绑定的node的端口(默认的取值范围是：30000-32767), 如果不指定，会默认分配
+    targetPort: 80" > service-nodeport.yaml
+```
+
+
+
+创建：
+
+```sh
+kubectl create -f service-nodeport.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f service-nodeport.yaml
+service/service-nodeport created
+PS C:\Users\mao\Desktop> kubectl get -f service-nodeport.yaml
+NAME               TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+service-nodeport   NodePort   10.111.170.199   <none>        80:30002/TCP   9s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+可以通过电脑主机的浏览器去访问集群中任意一个nodeip的30002端口，即可访问到pod
+
+```sh
+PS C:\Users\mao\Desktop> curl 127.0.0.1:30002
+
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <title>Welcome to nginx!</title>
+                    <style>
+                    html { color-scheme: light dark; }
+                    body { width: 35em; margin: 0 auto;
+                    font-family: Tahoma, Verdana, Arial, sans-serif; }
+                    </style...
+RawContent        : HTTP/1.1 200 OK
+                    Connection: keep-alive
+                    Accept-Ranges: bytes
+                    Content-Length: 615
+                    Content-Type: text/html
+                    Date: Wed, 30 Aug 2023 06:50:46 GMT
+                    ETag: "61cb2d26-267"
+                    Last-Modified: Tue, 28 Dec 2021 ...
+Forms             : {}
+Headers           : {[Connection, keep-alive], [Accept-Ranges, bytes], [Content-Length, 615], [Content-Type, text/html]...}
+Images            : {}
+InputFields       : {}
+Links             : {@{innerHTML=nginx.org; innerText=nginx.org; outerHTML=<A href="http://nginx.org/">nginx.org</A>; outerText=nginx.org; tagN
+                    ame=A; href=http://nginx.org/}, @{innerHTML=nginx.com; innerText=nginx.com; outerHTML=<A href="http://nginx.com/">nginx.com
+                    </A>; outerText=nginx.com; tagName=A; href=http://nginx.com/}}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 615
+
+
+
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+#### 删除
+
+命令：
+
+```sh
+kubectl delete -f service-nodeport.yaml
+```
+
+
+
+
+
+
+
+### LoadBalancer类型的Service
+
+LoadBalancer和NodePort很相似，目的都是向外部暴露一个端口，区别在于LoadBalancer会在集群的外部再来做一个负载均衡设备，而这个设备需要外部环境支持的，外部服务发送到这个设备上的请求，会被设备负载之后转发到集群中
+
+
+
+![image-20230830145629499](img/Kubernetes学习笔记/image-20230830145629499.png)
+
+
+
+
+
+### ExternalName类型的Service
+
+ExternalName类型的Service用于引入集群外部的服务，它通过`externalName`属性指定外部一个服务的地址，然后在集群内部访问此service就可以访问到外部的服务了。
+
+
+
+![image-20230830145813220](img/Kubernetes学习笔记/image-20230830145813220.png)
+
+
+
+
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-externalname
+  namespace: dev
+spec:
+  type: ExternalName # service类型
+  externalName: www.baidu.com  #改成ip地址也可以
+```
+
+
+
+
+
+
+
+
+
+
+
+# Ingress
+
+## 概述
+
+Service对集群之外暴露服务的主要方式有两种：NotePort和LoadBalancer，但是这两种方式，都有一定的缺点：
+
+* NodePort方式的缺点是会占用很多集群机器的端口，那么当集群服务变多的时候，这个缺点就愈发明显
+* LB方式的缺点是每个service需要一个LB，浪费、麻烦，并且需要kubernetes之外设备的支持
+
+
+
+基于这种现状，kubernetes提供了Ingress资源对象，Ingress只需要一个NodePort或者一个LB就可以满足暴露多个Service的需求
+
+
+
+![image-20230830150624203](img/Kubernetes学习笔记/image-20230830150624203.png)
+
+
+
+
+
+![image-20230830150830016](img/Kubernetes学习笔记/image-20230830150830016.png)
+
+
+
+
+
+Ingress相当于一个7层的负载均衡器，是kubernetes对反向代理的一个抽象，它的工作原理类似于Nginx，可以理解成在**Ingress里建立诸多映射规则，Ingress Controller通过监听这些配置规则并转化成Nginx的反向代理配置 , 然后对外部提供服务**。
+
+
+
+在这里有两个核心概念：
+
+* ingress：kubernetes中的一个对象，作用是定义请求如何转发到service的规则
+* ingress controller：具体实现反向代理及负载均衡的程序，对ingress定义的规则进行解析，根据配置的规则来实现请求转发，实现方式有很多，比如Nginx, Contour, Haproxy等等
+
+
+
+
+
+## 工作原理
+
 
 
