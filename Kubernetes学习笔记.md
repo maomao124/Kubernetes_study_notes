@@ -6589,5 +6589,329 @@ Ingress相当于一个7层的负载均衡器，是kubernetes对反向代理的�
 
 ## 工作原理
 
+工作原理如下：
 
+1. 用户编写Ingress规则，说明哪个域名对应kubernetes集群中的哪个Service
+2. Ingress控制器动态感知Ingress服务规则的变化，然后生成一段对应的Nginx反向代理配置
+3. Ingress控制器会将生成的Nginx配置写入到一个运行着的Nginx服务中，并动态更新
+4. 其实真正在工作的就是一个Nginx了，内部配置了用户定义的请求转发规则
+
+
+
+![image-20230830155048532](img/Kubernetes学习笔记/image-20230830155048532.png)
+
+
+
+
+
+
+
+## 使用
+
+### 环境准备
+
+#### 搭建ingress环境
+
+
+
+下载配置：
+
+```shell
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.0/deploy/static/provider/cloud/deploy.yaml
+```
+
+或
+
+```shell
+kubectl apply -f ingress-nginx-controller.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl apply -f .\ingress-nginx-controller.yaml
+namespace/ingress-nginx created
+serviceaccount/ingress-nginx created
+serviceaccount/ingress-nginx-admission created
+role.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx-admission created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+service/ingress-nginx-controller-admission created
+deployment.apps/ingress-nginx-controller created
+job.batch/ingress-nginx-admission-create created
+job.batch/ingress-nginx-admission-patch created
+ingressclass.networking.k8s.io/nginx created
+validatingwebhookconfiguration.admissionregistration.k8s.io/ingress-nginx-admission created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+查看：
+
+```sh
+kubectl get pod -n ingress-nginx
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pod -n ingress-nginx
+NAME                                        READY   STATUS              RESTARTS   AGE
+ingress-nginx-admission-create-5vhjc        0/1     ErrImagePull        0          43s
+ingress-nginx-admission-patch-cnvf4         0/1     ImagePullBackOff    0          43s
+ingress-nginx-controller-5dcb895bcd-4jwsx   0/1     ContainerCreating   0          43s
+PS C:\Users\mao\Desktop> kubectl get ns
+NAME                   STATUS   AGE
+default                Active   38d
+ingress-nginx          Active   61s
+kube-node-lease        Active   38d
+kube-public            Active   38d
+kube-system            Active   38d
+kubernetes-dashboard   Active   38d
+test                   Active   32d
+PS C:\Users\mao\Desktop>
+```
+
+
+
+耐心等待完成
+
+
+
+查看service：
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get svc -n ingress-nginx
+NAME                                 TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx-controller             LoadBalancer   10.98.23.192   localhost     80:32596/TCP,443:30183/TCP   3m23s
+ingress-nginx-controller-admission   ClusterIP      10.108.58.3    <none>        443/TCP                      3m23s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+#### 准备service和pod
+
+![image-20230830160635272](img/Kubernetes学习笔记/image-20230830160635272.png)
+
+
+
+
+
+创建tomcat-nginx.yaml：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat-deployment
+  namespace: test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tomcat-pod
+  template:
+    metadata:
+      labels:
+        app: tomcat-pod
+    spec:
+      containers:
+      - name: tomcat
+        image: tomcat:8.5
+        ports:
+        - containerPort: 8080
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: tomcat-service
+  namespace: test
+spec:
+  selector:
+    app: tomcat-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat-deployment
+  namespace: test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tomcat-pod
+  template:
+    metadata:
+      labels:
+        app: tomcat-pod
+    spec:
+      containers:
+      - name: tomcat
+        image: tomcat:8.5
+        ports:
+        - containerPort: 8080
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: test
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: tomcat-service
+  namespace: test
+spec:
+  selector:
+    app: tomcat-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080" > tomcat-nginx.yaml
+```
+
+
+
+
+
+创建：
+
+```sh
+kubectl create -f tomcat-nginx.yaml
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f tomcat-nginx.yaml
+deployment.apps/nginx-deployment created
+deployment.apps/tomcat-deployment created
+service/nginx-service created
+service/tomcat-service created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+查看：
+
+```sh
+kubectl get svc -n test
+```
+
+
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get svc -n test
+NAME             TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+nginx-service    ClusterIP   None         <none>        80/TCP     33s
+tomcat-service   ClusterIP   None         <none>        8080/TCP   33s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### Http代理
 
