@@ -3614,7 +3614,7 @@ PS C:\Users\mao\Desktop>
 
 创建一个svc-nginx.yaml：
 
-```sh
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7603,3 +7603,222 @@ spec:
 
 
 #### 示例
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name:  pv1
+spec:
+  capacity: 
+    storage: 1Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    path: /root/data/pv1
+    server: 192.168.109.100
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name:  pv2
+spec:
+  capacity: 
+    storage: 2Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    path: /root/data/pv2
+    server: 192.168.109.100
+    
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name:  pv3
+spec:
+  capacity: 
+    storage: 3Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    path: /root/data/pv3
+    server: 192.168.109.100
+```
+
+
+
+
+
+### PVC
+
+#### 概述
+
+PVC（Persistent Volume Claim）是持久卷声明的意思，是用户对于存储需求的一种声明。换句话说，PVC其实就是用户向kubernetes系统发出的一种资源需求申请。
+
+PVC是资源的申请，用来声明对存储空间、访问模式、存储类别需求信息
+
+
+
+
+
+#### 资源清单文件
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc
+  namespace: test
+spec:
+  accessModes: # 访问模式
+  selector: # 采用标签对PV选择
+  storageClassName: # 存储类别
+  resources: # 请求空间
+    requests:
+      storage: 5Gi
+```
+
+
+
+* **访问模式（accessModes）**：用于描述用户应用对存储资源的访问权限
+* **选择条件（selector）**：通过Label Selector的设置，可使PVC对于系统中己存在的PV进行筛选
+* **存储类别（storageClassName）**：PVC在定义时可以设定需要的后端存储的类别，只有设置了该class的pv才能被系统选出
+* **资源请求（Resources ）**：描述对存储资源的请求
+
+
+
+
+
+#### 示例
+
+申请pv
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc1
+  namespace: test
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+      
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc2
+  namespace: test
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+     
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc3
+  namespace: test
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+
+
+使用pv：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod1
+  namespace: test
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","while true;do echo pod1 >> /root/out.txt; sleep 10; done;"]
+    volumeMounts:
+    - name: volume
+      mountPath: /root/
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc1
+        readOnly: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod2
+  namespace: test
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","while true;do echo pod2 >> /root/out.txt; sleep 10; done;"]
+    volumeMounts:
+    - name: volume
+      mountPath: /root/
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc2
+        readOnly: false        
+```
+
+
+
+
+
+
+
+### 生命周期
+
+PVC和PV是一一对应的，PV和PVC之间的相互作用遵循以下生命周期：
+
+* **资源供应**：管理员手动创建底层存储和PV
+* **资源绑定**：用户创建PVC，kubernetes负责根据PVC的声明去寻找PV，并绑定。在用户定义好PVC之后，系统将根据PVC对存储资源的请求在已存在的PV中选择一个满足条件的。一旦找到，就将该PV与用户定义的PVC进行绑定，用户的应用就可以使用这个PVC了，如果找不到，PVC则会无限期处于Pending状态，直到等到系统管理员创建了一个符合其要求的PV。PV一旦绑定到某个PVC上，就会被这个PVC独占，不能再与其他PVC进行绑定了
+* **资源使用**：用户可在pod中像volume一样使用pvc，Pod使用Volume的定义，将PVC挂载到容器内的某个路径进行使用
+* **资源释放**：用户删除pvc来释放pv。当存储资源使用完毕后，用户可以删除PVC，与该PVC绑定的PV将会被标记为“已释放”，但还不能立刻与其他PVC进行绑定。通过之前PVC写入的数据可能还被留在存储设备上，只有在清除之后该PV才能再次使用
+* **资源回收**：kubernetes根据pv设置的回收策略进行资源的回收。对于PV，管理员可以设定回收策略，用于设置与之绑定的PVC释放资源之后如何处理遗留数据的问题。只有PV的存储空间完成回收，才能供新的PVC绑定和使用
+
+
+
+![image-20230831175727078](img/Kubernetes学习笔记/image-20230831175727078.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 配置存储
+
