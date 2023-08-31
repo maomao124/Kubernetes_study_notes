@@ -7195,3 +7195,411 @@ tomcat.com /  tomcat-service:8080(10.244.1.99:8080,10.244.2.117:8080,10.244.2.12
 
 
 # 数据存储
+
+## 概述
+
+容器的生命周期可能很短，会被频繁地创建和销毁。那么容器在销毁时，保存在容器中的数据也会被清除。这种结果对用户来说，在某些情况下是不乐意看到的。为了持久化保存容器的数据，kubernetes引入了Volume的概念
+
+Volume是Pod中能够被多个容器访问的共享目录，它被定义在Pod上，然后被一个Pod里的多个容器挂载到具体的文件目录下，kubernetes通过Volume实现同一个Pod中不同容器之间的数据共享以及数据的持久化存储。Volume的生命容器不与Pod中单个容器的生命周期相关，当容器终止或者重启时，Volume中的数据也不会丢失。
+
+
+
+kubernetes的Volume支持多种类型：
+
+* 简单存储：EmptyDir、HostPath、NFS
+* 高级存储：PV、PVC
+* 配置存储：ConfigMap、Secret
+
+
+
+
+
+## 基本存储
+
+### EmptyDir
+
+#### 概述
+
+EmptyDir是最基础的Volume类型，一个EmptyDir就是Host上的一个空目录
+
+EmptyDir是在Pod被分配到Node时创建的，它的初始内容为空，并且无须指定宿主机上对应的目录文件，因为kubernetes会自动分配一个目录，当Pod销毁时， EmptyDir中的数据也会被永久删除。 EmptyDir用途如下：
+
+* 临时空间，例如用于某些应用程序运行时所需的临时目录，且无须永久保留
+* 一个容器需要从另一个容器中获取数据的目录（多容器共享目录）
+
+
+
+#### 示例
+
+在一个Pod中准备两个容器nginx和busybox，然后声明一个Volume分别挂在到两个容器的目录中，然后nginx容器负责向Volume中写日志，busybox中通过命令将日志内容读到控制台。
+
+![image-20230830175011146](img/Kubernetes学习笔记/image-20230830175011146.png)
+
+
+
+
+
+创建volume-emptydir.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:  # 将logs-volume挂在到nginx容器中，对应的目录为 /var/log/nginx
+    - name: logs-volume
+      mountPath: /var/log/nginx
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","tail -f /logs/access.log"] # 初始命令，动态读取指定文件中内容
+    volumeMounts:  # 将logs-volume 挂在到busybox容器中，对应的目录为 /logs
+    - name: logs-volume
+      mountPath: /logs
+  volumes: # 声明volume， name为logs-volume，类型为emptyDir
+  - name: logs-volume
+    emptyDir: {}
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:  # 将logs-volume挂在到nginx容器中，对应的目录为 /var/log/nginx
+    - name: logs-volume
+      mountPath: /var/log/nginx
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","tail -f /logs/access.log"] # 初始命令，动态读取指定文件中内容
+    volumeMounts:  # 将logs-volume 挂在到busybox容器中，对应的目录为 /logs
+    - name: logs-volume
+      mountPath: /logs
+  volumes: # 声明volume， name为logs-volume，类型为emptyDir
+  - name: logs-volume
+    emptyDir: {}" > volume-emptydir.yaml
+```
+
+
+
+创建：
+
+```sh
+kubectl create -f volume-emptydir.yaml
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f volume-emptydir.yaml
+pod/volume-emptydir created
+PS C:\Users\mao\Desktop>
+```
+
+
+
+查看pod：
+
+```sh
+kubectl get pods volume-emptydir -n test -o wide
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl get pods volume-emptydir -n test -o wide
+NAME              READY   STATUS    RESTARTS   AGE   IP         NODE             NOMINATED NODE   READINESS GATES
+volume-emptydir   2/2     Running   0          55s   10.1.1.7   docker-desktop   <none>           <none>
+PS C:\Users\mao\Desktop> kubectl get pods volume-emptydir -n test -o wide
+NAME              READY   STATUS    RESTARTS   AGE   IP         NODE             NOMINATED NODE   READINESS GATES
+volume-emptydir   2/2     Running   0          59s   10.1.1.7   docker-desktop   <none>           <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+通过kubectl logs命令查看指定容器的标准输出：
+
+```sh
+kubectl logs -f volume-emptydir -n test -c busybox
+```
+
+
+
+
+
+### HostPath
+
+#### 概述
+
+EmptyDir中数据不会被持久化，它会随着Pod的结束而销毁，如果想简单的将数据持久化到主机中，可以选择HostPath
+
+HostPath就是将Node主机中一个实际目录挂在到Pod中，以供容器使用，这样的设计就可以保证Pod销毁了，但是数据依据可以存在于Node主机上
+
+
+
+![image-20230830180757107](img/Kubernetes学习笔记/image-20230830180757107.png)
+
+
+
+
+
+
+
+#### 示例
+
+创建volume-hostpath.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-hostpath
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: logs-volume
+      mountPath: /var/log/nginx
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","tail -f /logs/access.log"]
+    volumeMounts:
+    - name: logs-volume
+      mountPath: /logs
+  volumes:
+  - name: logs-volume
+    hostPath: 
+      path: ./logs
+      type: DirectoryOrCreate  # 目录存在就使用，不存在就先创建后使用
+```
+
+
+
+type的值：
+
+* DirectoryOrCreate：目录存在就使用，不存在就先创建后使用
+* Directory：目录必须存在
+* FileOrCreate：文件存在就使用，不存在就先创建后使用
+* File：文件必须存在	
+* Socket：unix套接字必须存在
+* CharDevice：字符设备必须存在
+* BlockDevice：块设备必须存在
+
+
+
+创建：
+
+```sh
+kubectl create -f volume-hostpath.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl get pods volume-hostpath -n test -o wide
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f volume-hostpath.yaml
+pod/volume-hostpath created
+PS C:\Users\mao\Desktop> kubectl get pods volume-hostpath -n test -o wide
+NAME              READY   STATUS              RESTARTS   AGE   IP       NODE             NOMINATED NODE   READINESS GATES
+volume-hostpath   0/2     ContainerCreating   0          27s   <none>   docker-desktop   <none>           <none>
+PS C:\Users\mao\Desktop> kubectl get pods volume-hostpath -n test -o wide
+NAME              READY   STATUS              RESTARTS   AGE   IP       NODE             NOMINATED NODE   READINESS GATES
+volume-hostpath   0/2     ContainerCreating   0          33s   <none>   docker-desktop   <none>           <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+
+
+### NFS
+
+#### 概述
+
+HostPath可以解决数据持久化的问题，但是一旦Node节点故障了，Pod如果转移到了别的节点，又会出现问题了，此时需要准备单独的网络存储系统，比较常用的用NFS、CIFS
+
+NFS是一个网络文件存储系统，可以搭建一台NFS服务器，然后将Pod中的存储直接连接到NFS系统上，这样的话，无论Pod在节点上怎么转移，只要Node跟NFS的对接没问题，数据就可以成功访问
+
+
+
+![image-20230831152258327](img/Kubernetes学习笔记/image-20230831152258327.png)
+
+
+
+
+
+
+
+
+
+#### 准备nfs
+
+首先要准备nfs的服务器，安装nfs服务
+
+```sh
+yum install nfs-utils -y
+```
+
+
+
+准备一个共享目录：
+
+```sh
+mkdir /root/data/nfs -pv
+```
+
+
+
+将共享目录以读写权限暴露给网段中的所有主机
+
+```sh
+vim /etc/exports
+more /etc/exports
+/root/data/nfs     192.168.109.0/24(rw,no_root_squash)
+```
+
+
+
+启动nfs服务
+
+```sh
+systemctl start nfs
+```
+
+
+
+#### 示例
+
+创建volume-nfs.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-nfs
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: logs-volume
+      mountPath: /var/log/nginx
+  - name: busybox
+    image: busybox
+    command: ["/bin/sh","-c","tail -f /logs/access.log"] 
+    volumeMounts:
+    - name: logs-volume
+      mountPath: /logs
+  volumes:
+  - name: logs-volume
+    nfs:
+      server: 192.168.109.100  #nfs服务器地址
+      path: /root/data/nfs #共享文件路径
+```
+
+
+
+
+
+
+
+
+
+## 高级存储
+
+### PV
+
+#### 概述
+
+由于kubernetes支持的存储系统有很多，要求客户全都掌握，显然不现实。为了能够屏蔽底层存储实现的细节，方便用户使用， kubernetes引入PV和PVC两种资源对象。
+
+PV（Persistent Volume）是持久化卷的意思，是对底层的共享存储的一种抽象。一般情况下PV由kubernetes管理员进行创建和配置，它与底层具体的共享存储技术有关，并通过插件完成与共享存储的对接
+
+
+
+![image-20230831153211055](img/Kubernetes学习笔记/image-20230831153211055.png)
+
+
+
+
+
+使用了PV和PVC之后，工作可以得到进一步的细分：
+
+- 存储：存储工程师维护
+- PV：  kubernetes管理员维护
+- PVC：kubernetes用户维护
+
+
+
+
+
+#### 资源清单文件
+
+```yaml
+apiVersion: v1  
+kind: PersistentVolume
+metadata:
+  name: pv2
+spec:
+  nfs: # 存储类型，与底层真正存储对应
+  capacity:  # 存储能力，目前只支持存储空间的设置
+    storage: 2Gi
+  accessModes:  # 访问模式
+  storageClassName: # 存储类别
+  persistentVolumeReclaimPolicy: # 回收策略
+```
+
+
+
+* **存储类型**：底层实际存储的类型，kubernetes支持多种存储类型，每种存储类型的配置都有所差异
+
+* **存储能力（capacity）**：目前只支持存储空间的设置( storage=1Gi )，不过未来可能会加入IOPS、吞吐量等指标的配置
+
+* **访问模式（accessModes）**：用于描述用户应用对存储资源的访问权限，访问权限包括下面几种方式：
+  * ReadWriteOnce（RWO）：读写权限，但是只能被单个节点挂载
+  * ReadOnlyMany（ROX）：  只读权限，可以被多个节点挂载
+  * ReadWriteMany（RWX）：读写权限，可以被多个节点挂载
+* **回收策略（persistentVolumeReclaimPolicy）**：当PV不再被使用了之后，对其的处理方式。目前支持三种策略：
+  * Retain  （保留）  保留数据，需要管理员手工清理数据
+  * Recycle（回收）  清除 PV 中的数据，效果相当于执行 rm -rf /thevolume/*
+  * Delete  （删除） 与 PV 相连的后端存储完成 volume 的删除操作，当然这常见于云服务商的存储服务
+* **存储类别**：PV可以通过storageClassName参数指定一个存储类别
+  * 具有特定类别的PV只能与请求了该类别的PVC进行绑定
+  * 未设定类别的PV则只能与不请求任何类别的PVC进行绑定
+* **状态（status）**：一个 PV 的生命周期中，可能会处于4中不同的阶段：
+  * Available（可用）：表示可用状态，还未被任何 PVC 绑定
+  * Bound（已绑定）：表示 PV 已经被 PVC 绑定
+  * Released（已释放）：表示 PVC 被删除，但是资源还未被集群重新声明
+  * Failed（失败）：表示该 PV 的自动回收失败
+
+
+
+
+
+#### 示例
