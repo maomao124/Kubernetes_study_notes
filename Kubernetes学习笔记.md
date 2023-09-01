@@ -7822,3 +7822,417 @@ PVC和PV是一一对应的，PV和PVC之间的相互作用遵循以下生命周�
 
 ## 配置存储
 
+### ConfigMap
+
+ConfigMap是一种比较特殊的存储卷，它的主要作用是用来存储配置信息的
+
+创建configmap.yaml，内容如下：
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace: test
+data:
+  info: |
+    username:admin
+    password:123456
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace: test
+data:
+  info: |
+    username:admin
+    password:123456" > configmap.yaml
+```
+
+
+
+创建创建configmap：
+
+```sh
+kubectl create -f configmap.yaml
+```
+
+
+
+查看详情：
+
+```sh
+kubectl describe cm configmap -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f configmap.yaml
+configmap/configmap created
+PS C:\Users\mao\Desktop> kubectl describe cm configmap -n test
+Name:         configmap
+Namespace:    test
+Labels:       <none>
+Annotations:  <none>
+
+Data
+====
+info:
+----
+username:admin
+password:123456
+
+
+BinaryData
+====
+
+Events:  <none>
+PS C:\Users\mao\Desktop>
+```
+
+
+
+创建pod-configmap.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-configmap
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts: # 将configmap挂载到目录
+    - name: config
+      mountPath: /configmap/config
+  volumes: # 引用configmap
+  - name: config
+    configMap:
+      name: configmap
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-configmap
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts: # 将configmap挂载到目录
+    - name: config
+      mountPath: /configmap/config
+  volumes: # 引用configmap
+  - name: config
+    configMap:
+      name: configmap" > pod-configmap.yaml
+```
+
+
+
+
+
+创建：
+
+```sh
+kubectl create -f pod-configmap.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl get pod pod-configmap -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f pod-configmap.yaml
+pod/pod-configmap created
+PS C:\Users\mao\Desktop> kubectl get pod pod-configmap -n test
+NAME            READY   STATUS    RESTARTS   AGE
+pod-configmap   1/1     Running   0          28s
+PS C:\Users\mao\Desktop>
+```
+
+
+
+进入容器：
+
+```sh
+kubectl exec -it pod-configmap -n test bash
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl exec -it pod-configmap -n test bash
+kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
+root@pod-configmap:/# ls -l
+total 84
+drwxr-xr-x     2 root root 4096 Dec 20  2021 bin
+drwxr-xr-x     2 root root 4096 Dec 11  2021 boot
+drwxr-xr-x     3 root root 4096 Aug 31 10:16 configmap
+drwxr-xr-x     5 root root  360 Aug 31 10:16 dev
+drwxr-xr-x     1 root root 4096 Dec 29  2021 docker-entrypoint.d
+-rwxrwxr-x     1 root root 1202 Dec 29  2021 docker-entrypoint.sh
+drwxr-xr-x     1 root root 4096 Aug 31 10:16 etc
+drwxr-xr-x     2 root root 4096 Dec 11  2021 home
+drwxr-xr-x     1 root root 4096 Dec 20  2021 lib
+drwxr-xr-x     2 root root 4096 Dec 20  2021 lib64
+drwxr-xr-x     2 root root 4096 Dec 20  2021 media
+drwxr-xr-x     2 root root 4096 Dec 20  2021 mnt
+drwxr-xr-x     2 root root 4096 Dec 20  2021 opt
+dr-xr-xr-x 21210 root root    0 Aug 31 10:16 proc
+drwx------     2 root root 4096 Dec 20  2021 root
+drwxr-xr-x     1 root root 4096 Aug 31 10:16 run
+drwxr-xr-x     2 root root 4096 Dec 20  2021 sbin
+drwxr-xr-x     2 root root 4096 Dec 20  2021 srv
+dr-xr-xr-x    11 root root    0 Aug 31 10:16 sys
+drwxrwxrwt     1 root root 4096 Dec 29  2021 tmp
+drwxr-xr-x     1 root root 4096 Dec 20  2021 usr
+drwxr-xr-x     1 root root 4096 Dec 20  2021 var
+root@pod-configmap:/# cd /configmap/config/
+root@pod-configmap:/configmap/config# ls -l
+total 0
+lrwxrwxrwx 1 root root 11 Aug 31 10:16 info -> ..data/info
+root@pod-configmap:/configmap/config# more info
+username:admin
+password:123456
+root@pod-configmap:/configmap/config# cat -n info
+     1  username:admin
+     2  password:123456
+root@pod-configmap:/configmap/config#
+```
+
+
+
+可以看到映射已经成功，每个configmap都映射成了一个目录
+
+key为文件，value为文件中的内容
+
+此时如果更新configmap的内容, 容器中的值也会动态更新
+
+
+
+
+
+
+
+### Secret
+
+在kubernetes中，还存在一种和ConfigMap非常类似的对象，称为Secret对象。它主要用于存储敏感信息，例如密码、秘钥、证书等等
+
+
+
+使用base64对数据进行编码：
+
+```sh
+mao@mao MINGW64 ~/Desktop
+$ echo -n 'admin' | base64
+YWRtaW4=
+
+mao@mao MINGW64 ~/Desktop
+```
+
+```sh
+mao@mao MINGW64 ~/Desktop
+$ echo -n '123456' | base64
+MTIzNDU2
+
+mao@mao MINGW64 ~/Desktop
+```
+
+
+
+编写secret.yaml：
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret
+  namespace: test
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: MTIzNDU2
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: v1
+kind: Secret
+metadata:
+  name: secret
+  namespace: test
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: MTIzNDU2" > secret.yaml
+```
+
+
+
+创建secret：
+
+```sh
+kubectl create -f secret.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl describe secret secret -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f secret.yaml
+secret/secret created
+PS C:\Users\mao\Desktop> kubectl describe secret secret -n test
+Name:         secret
+Namespace:    test
+Labels:       <none>
+Annotations:  <none>
+
+Type:  Opaque
+
+Data
+====
+password:  6 bytes
+username:  5 bytes
+PS C:\Users\mao\Desktop>
+```
+
+
+
+创建pod-secret.yaml：
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-secret
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts: # 将secret挂载到目录
+    - name: config
+      mountPath: /secret/config
+  volumes:
+  - name: config
+    secret:
+      secretName: secret
+```
+
+
+
+或者直接执行：
+
+```sh
+echo "apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-secret
+  namespace: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts: # 将secret挂载到目录
+    - name: config
+      mountPath: /secret/config
+  volumes:
+  - name: config
+    secret:
+      secretName: secret" > pod-secret.yaml
+```
+
+
+
+创建：
+
+```sh
+kubectl create -f pod-secret.yaml
+```
+
+
+
+查看：
+
+```sh
+kubectl get pod pod-secret -n test
+```
+
+```sh
+PS C:\Users\mao\Desktop> kubectl create -f pod-secret.yaml
+pod/pod-secret created
+PS C:\Users\mao\Desktop> kubectl get pod pod-secret -n test
+NAME         READY   STATUS              RESTARTS   AGE
+pod-secret   0/1     ContainerCreating   0          5s
+PS C:\Users\mao\Desktop>
+```
+
+等待创建完成
+
+
+
+进入容器，查看secret信息：
+
+```sh
+kubectl exec -it pod-secret bash -n test
+```
+
+
+
+```sh
+root@pod-secret:/secret/config# ls -l
+total 0
+lrwxrwxrwx 1 root root 15 Sep  1 07:06 password -> ..data/password
+lrwxrwxrwx 1 root root 15 Sep  1 07:06 username -> ..data/username
+root@pod-secret:/secret/config# more username
+admin
+root@pod-secret:/secret/config# more password
+123456
+root@pod-secret:/secret/config#
+```
+
+
+
+查看secret信息，发现已经自动解码了
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 安全认证
+
+## 访问控制概述
+
