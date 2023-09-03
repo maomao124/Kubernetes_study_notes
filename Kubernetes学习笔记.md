@@ -8319,3 +8319,248 @@ Kubernetes集群安全的最关键点在于如何识别并认证客户端身份�
 
 
 
+
+
+服务器端和客户端协商好加密方案后，客户端会产生一个随机的秘钥并加密，然后发送到服务器端，服务器端接收这个秘钥后，双方接下来通信的所有内容都通过该随机秘钥加密
+
+Kubernetes允许同时配置多种认证方式，只要其中任意一个方式认证通过即可
+
+
+
+
+
+
+
+## 授权管理
+
+授权发生在认证成功之后，通过认证就可以知道请求用户是谁， 然后Kubernetes会根据事先定义的授权策略来决定用户是否有权限访问，这个过程就称为授权。
+
+每个发送到ApiServer的请求都带上了用户和资源的信息：比如发送请求的用户、请求的路径、请求的动作等，授权就是根据这些信息和授权策略进行比较，如果符合策略，则认为授权通过，否则会返回错误。
+
+
+
+API Server目前支持以下几种授权策略：
+
+* AlwaysDeny：表示拒绝所有请求，一般用于测试
+* AlwaysAllow：允许接收所有请求，相当于集群不需要授权流程（Kubernetes默认的策略）
+* ABAC：基于属性的访问控制，表示使用用户配置的授权规则对用户请求进行匹配和控制
+* Webhook：通过调用外部REST服务对用户进行授权
+* Node：是一种专用模式，用于对kubelet发出的请求进行访问控制
+* RBAC：基于角色的访问控制（kubeadm安装方式下的默认选项）
+
+
+
+RBAC(Role-Based Access Control) 基于角色的访问控制，主要是在描述一件事情：**给哪些对象授予了哪些权限**
+
+其中涉及到了下面几个概念：
+
+* 对象：User、Groups、ServiceAccount
+* 角色：代表着一组定义在资源上的可操作动作(权限)的集合
+* 绑定：将定义好的角色跟用户绑定在一起
+
+![image-20230903141638116](img/Kubernetes学习笔记/image-20230903141638116.png)
+
+
+
+RBAC引入了4个顶级资源对象：
+
+* Role、ClusterRole：角色，用于指定一组权限
+* RoleBinding、ClusterRoleBinding：角色绑定，用于将角色（权限）赋予给对象
+
+
+
+
+
+### Role、ClusterRole
+
+一个角色就是一组权限的集合，这里的权限都是许可形式的（白名单）
+
+```yaml
+# Role只能对命名空间内的资源进行授权，需要指定nameapce
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: test
+  name: authorization-role
+rules:
+- apiGroups: [""]  # 支持的API组列表,"" 空字符串，表示核心API群
+  resources: ["pods"] # 支持的资源对象列表
+  verbs: ["get", "watch", "list"] # 允许的对资源对象的操作方法列表
+```
+
+```yaml
+# ClusterRole可以对集群范围内资源、跨namespaces的范围资源、非资源类型进行授权
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+ name: authorization-clusterrole
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+```
+
+
+
+apiGroups: 支持的API组列表
+
+```sh
+"","apps", "autoscaling", "batch"
+```
+
+
+
+resources：支持的资源对象列表
+
+```sh
+"services", "endpoints", "pods","secrets","configmaps","crontabs","deployments","jobs",
+"nodes","rolebindings","clusterroles","daemonsets","replicasets","statefulsets",
+"horizontalpodautoscalers","replicationcontrollers","cronjobs"
+```
+
+
+
+verbs：对资源对象的操作方法列表
+
+```sh
+"get", "list", "watch", "create", "update", "patch", "delete", "exec"
+```
+
+
+
+
+
+### RoleBinding、ClusterRoleBinding
+
+角色绑定用来把一个角色绑定到一个目标对象上，绑定目标可以是User、Group或者ServiceAccount
+
+```yaml
+# RoleBinding可以将同一namespace中的subject绑定到某个Role下，则此subject即具有该Role定义的权限
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: authorization-role-binding
+  namespace: test
+subjects:
+- kind: User
+  name: username
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: authorization-role
+  apiGroup: rbac.authorization.k8s.io
+```
+
+```yaml
+# ClusterRoleBinding在整个集群级别和所有namespaces将特定的subject与ClusterRole绑定，授予权限
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+ name: authorization-clusterrole-binding
+subjects:
+- kind: User
+  name: username
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: authorization-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+```
+
+
+
+### RoleBinding引用ClusterRole进行授权
+
+RoleBinding可以引用ClusterRole，对属于同一命名空间内ClusterRole定义的资源主体进行授权
+
+一种很常用的做法就是，集群管理员为集群范围预定义好一组角色（ClusterRole），然后在多个命名空间中重复使用这些ClusterRole。这样可以大幅提高授权管理工作效率，也使得各个命名空间下的基础性授权规则与使用体验保持一致。
+
+
+
+```yaml
+# username只能读取test命名空间中的资源
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: authorization-role-binding-ns
+  namespace: test
+subjects:
+- kind: User
+  name: username
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: authorization-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+```
+
+
+
+
+
+## 准入控制
+
+通过了前面的认证和授权之后，还需要经过准入控制处理通过之后，apiserver才会处理这个请求。
+
+准入控制是一个可配置的控制器列表，可以通过在Api-Server上通过命令行设置选择执行哪些准入控制器：
+
+```sh
+--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,
+                      DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds
+```
+
+
+
+只有当所有的准入控制器都检查通过之后，apiserver才执行该请求，否则返回拒绝。
+
+可配置的Admission Control准入控制如下：
+
+- AlwaysAdmit：允许所有请求
+- AlwaysDeny：禁止所有请求，一般用于测试
+- AlwaysPullImages：在启动容器之前总去下载镜像
+- DenyExecOnPrivileged：它会拦截所有想在Privileged Container上执行命令的请求
+- ImagePolicyWebhook：这个插件将允许后端的一个Webhook程序来完成admission controller的功能。
+- Service Account：实现ServiceAccount实现了自动化
+- SecurityContextDeny：这个插件将使用SecurityContext的Pod中的定义全部失效
+- ResourceQuota：用于资源配额管理目的，观察所有请求，确保在namespace上的配额不会超标
+- LimitRanger：用于资源限制管理，作用于namespace上，确保对Pod进行资源限制
+- InitialResources：为未设置资源请求与限制的Pod，根据其镜像的历史资源的使用情况进行设置
+- NamespaceLifecycle：如果尝试在一个不存在的namespace中创建资源对象，则该创建请求将被拒绝。当删除一个namespace时，系统将会删除该namespace中所有对象。
+- DefaultStorageClass：为了实现共享存储的动态供应，为未指定StorageClass或PV的PVC尝试匹配默认的StorageClass，尽可能减少用户在申请PVC时所需了解的后端存储细节
+- DefaultTolerationSeconds：这个插件为那些没有设置forgiveness tolerations并具有notready:NoExecute和unreachable:NoExecute两种taints的Pod设置默认的“容忍”时间，为5min
+- PodSecurityPolicy：这个插件用于在创建或修改Pod时决定是否根据Pod的security context和可用的PodSecurityPolicy对Pod的安全策略进行控制
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# DashBoard
+
+## 概述
+
+为了提供更丰富的用户体验，kubernetes还开发了一个基于web的用户界面（Dashboard）。用户可以使用Dashboard部署容器化的应用，还可以监控应用的状态，执行故障排查以及管理kubernetes中各种资源。
+
+
+
+
+
+## 部署和使用
+
+参考<a href="#第七步：部署 Kubernetes dashboard">部署 Kubernetes dashboard</a>
+
+
+
+
+
+
+
